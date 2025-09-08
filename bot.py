@@ -3,7 +3,7 @@ import logging
 import json
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -25,11 +25,10 @@ dp = Dispatcher(storage=storage)
 class OrderStates(StatesGroup):
     waiting_for_name = State()
     waiting_for_phone = State()
-    waiting_for_address = State()
+    waiting_for_location = State()
     waiting_for_watch_model = State()
     waiting_for_payment = State()
     waiting_for_admin_approval = State()
-    waiting_for_location = State()
 
 # Список моделей часов
 WATCH_MODELS = [
@@ -82,22 +81,43 @@ async def process_name(message: types.Message, state: FSMContext):
 async def process_phone(message: types.Message, state: FSMContext):
     """Обработка телефона"""
     await state.update_data(phone=message.text)
-    await state.set_state(OrderStates.waiting_for_address)
-    await message.answer("📍 Введите адрес доставки:")
+    await state.set_state(OrderStates.waiting_for_location)
+    
+    # Создаем клавиатуру с кнопкой геолокации
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="📍 Отправить геолокацию", request_location=True)]
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+    
+    await message.answer("📍 Отправьте вашу геолокацию для доставки:", reply_markup=keyboard)
 
-@dp.message(OrderStates.waiting_for_address)
-async def process_address(message: types.Message, state: FSMContext):
-    """Обработка адреса"""
-    await state.update_data(address=message.text)
-    await state.set_state(OrderStates.waiting_for_watch_model)
-    
-    # Создаем клавиатуру с моделями часов
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=model, callback_data=f"model_{i}")] 
-        for i, model in enumerate(WATCH_MODELS)
-    ])
-    
-    await message.answer("⌚ Выберите модель часов:", reply_markup=keyboard)
+@dp.message(OrderStates.waiting_for_location)
+async def process_location(message: types.Message, state: FSMContext):
+    """Обработка геолокации"""
+    if message.location:
+        # Сохраняем координаты
+        location_data = {
+            'latitude': message.location.latitude,
+            'longitude': message.location.longitude
+        }
+        await state.update_data(location=location_data)
+        await state.set_state(OrderStates.waiting_for_watch_model)
+        
+        # Убираем клавиатуру
+        await message.answer("✅ Геолокация получена!", reply_markup=types.ReplyKeyboardRemove())
+        
+        # Создаем клавиатуру с моделями часов
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=model, callback_data=f"model_{i}")] 
+            for i, model in enumerate(WATCH_MODELS)
+        ])
+        
+        await message.answer("⌚ Выберите модель часов:", reply_markup=keyboard)
+    else:
+        await message.answer("❌ Пожалуйста, отправьте геолокацию, нажав на кнопку ниже.")
 
 @dp.callback_query(lambda c: c.data.startswith("model_"))
 async def process_watch_model(callback_query: CallbackQuery, state: FSMContext):
@@ -176,17 +196,36 @@ async def process_order_data(user_id: int, order_data: dict):
             ]
         ])
         
+        # Формируем сообщение для админа
+        admin_message = f"�� Новый заказ!\n\n"
+        admin_message += f"👤 Клиент: {order_data.get('name', 'Не указано')}\n"
+        admin_message += f"📞 Телефон: {order_data.get('phone', 'Не указано')}\n"
+        
+        # Добавляем информацию о геолокации
+        if 'location' in order_data:
+            location = order_data['location']
+            admin_message += f"📍 Геолокация: {location['latitude']}, {location['longitude']}\n"
+        else:
+            admin_message += f"📍 Адрес: {order_data.get('address', 'Не указано')}\n"
+            
+        admin_message += f"⌚ Модель: {order_data.get('watch_model', 'Не указано')}\n"
+        admin_message += f"💳 Оплата: {order_data.get('payment_method', 'Не указано')}\n"
+        admin_message += f"🆔 ID пользователя: {user_id}"
+        
         await bot.send_message(
             ADMIN_CHAT_ID,
-            f"🆕 Новый заказ!\n\n"
-            f"👤 Клиент: {order_data.get('name', 'Не указано')}\n"
-            f"📞 Телефон: {order_data.get('phone', 'Не указано')}\n"
-            f"📍 Адрес: {order_data.get('address', 'Не указано')}\n"
-            f"⌚ Модель: {order_data.get('watch_model', 'Не указано')}\n"
-            f"💳 Оплата: {order_data.get('payment_method', 'Не указано')}\n"
-            f"🆔 ID пользователя: {user_id}",
+            admin_message,
             reply_markup=keyboard
         )
+        
+        # Если есть геолокация, отправляем её админу
+        if 'location' in order_data:
+            location = order_data['location']
+            await bot.send_location(
+                ADMIN_CHAT_ID,
+                latitude=location['latitude'],
+                longitude=location['longitude']
+            )
         
     except Exception as e:
         logging.error(f"Ошибка при обработке заказа: {e}")
@@ -226,13 +265,12 @@ async def handle_location(message: types.Message, state: FSMContext):
             'username': message.from_user.username,
             'name': message.from_user.first_name or 'Не указано',
             'phone': 'Не указано',
-            'address': 'Не указано',
-            'watch_model': 'Не указано',
-            'payment_method': 'Не указано',
             'location': {
                 'latitude': latitude,
                 'longitude': longitude
-            }
+            },
+            'watch_model': 'Не указано',
+            'payment_method': 'Не указано'
         }
         
         # Отправляем локацию админу

@@ -67,6 +67,41 @@
             min-height: 80px;
         }
 
+        .location-btn {
+            width: 100%;
+            padding: 15px;
+            background: var(--tg-theme-button-color, #007aff);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .location-btn:hover {
+            opacity: 0.9;
+        }
+
+        .location-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .location-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+            border-radius: 8px;
+            font-size: 14px;
+            color: var(--tg-theme-hint-color, #666666);
+        }
+
         .submit-btn {
             width: 100%;
             padding: 15px;
@@ -171,8 +206,13 @@
             </div>
 
             <div class="form-group">
-                <label for="address">Адрес *</label>
-                <textarea id="address" name="address" required placeholder="Укажите полный адрес доставки"></textarea>
+                <label>Геолокация *</label>
+                <button type="button" class="location-btn" id="locationBtn">
+                    📍 Получить геолокацию
+                </button>
+                <div class="location-info" id="locationInfo" style="display: none;">
+                    ✅ Геолокация получена
+                </div>
             </div>
 
             <div class="form-group">
@@ -226,9 +266,48 @@
             }
         }
 
+        // Переменные для хранения данных
+        let selectedModel = '';
+        let selectedPayment = '';
+        let userLocation = null;
+
+        // Обработка получения геолокации
+        document.getElementById('locationBtn').addEventListener('click', () => {
+            if (navigator.geolocation) {
+                document.getElementById('locationBtn').disabled = true;
+                document.getElementById('locationBtn').textContent = '⏳ Получение геолокации...';
+                
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        userLocation = {
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude
+                        };
+                        
+                        document.getElementById('locationBtn').textContent = '✅ Геолокация получена';
+                        document.getElementById('locationInfo').style.display = 'block';
+                        document.getElementById('locationBtn').disabled = false;
+                    },
+                    (error) => {
+                        console.error('Ошибка получения геолокации:', error);
+                        alert('Не удалось получить геолокацию. Разрешите доступ к местоположению и попробуйте снова.');
+                        
+                        document.getElementById('locationBtn').textContent = '📍 Получить геолокацию';
+                        document.getElementById('locationBtn').disabled = false;
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 60000
+                    }
+                );
+            } else {
+                alert('Геолокация не поддерживается вашим браузером.');
+            }
+        });
+
         // Обработка выбора модели часов
         const watchModels = document.querySelectorAll('.model-option');
-        let selectedModel = '';
 
         watchModels.forEach(option => {
             option.addEventListener('click', () => {
@@ -240,7 +319,6 @@
 
         // Обработка выбора способа оплаты
         const paymentMethods = document.querySelectorAll('.payment-option');
-        let selectedPayment = '';
 
         paymentMethods.forEach(option => {
             option.addEventListener('click', () => {
@@ -257,9 +335,8 @@
             // Проверка заполнения обязательных полей
             const name = document.getElementById('name').value.trim();
             const phone = document.getElementById('phone').value.trim();
-            const address = document.getElementById('address').value.trim();
 
-            if (!name || !phone || !address || !selectedModel || !selectedPayment) {
+            if (!name || !phone || !userLocation || !selectedModel || !selectedPayment) {
                 alert('Пожалуйста, заполните все обязательные поля');
                 return;
             }
@@ -272,7 +349,7 @@
             const orderData = {
                 name: name,
                 phone: phone,
-                address: address,
+                location: userLocation,
                 watch_model: selectedModel,
                 payment_method: selectedPayment,
                 user_id: user ? user.id : null,

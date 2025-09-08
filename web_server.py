@@ -1,6 +1,7 @@
 import asyncio
 from aiohttp import web
 import os
+from config import WEB_SERVER_PORT
 
 async def serve_webapp(request):
     """Сервис для отдачи Mini App"""
@@ -38,11 +39,11 @@ async def start_web_server():
     runner = web.AppRunner(app)
     await runner.setup()
     
-    site = web.TCPSite(runner, 'localhost', 8080)
+    site = web.TCPSite(runner, 'localhost', WEB_SERVER_PORT)
     await site.start()
     
-    print("🌐 Веб-сервер запущен на http://localhost:8080")
-    print("📱 Mini App доступен по адресу: http://localhost:8080/webapp/index.html")
+    print(f"🌐 Веб-сервер запущен на http://localhost:{WEB_SERVER_PORT}")
+    print(f"📱 Mini App доступен по адресу: http://localhost:{WEB_SERVER_PORT}/webapp/index.html")
     
     # Держим сервер запущенным
     try:

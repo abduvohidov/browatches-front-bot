@@ -26,18 +26,71 @@ class OrderStates(StatesGroup):
     waiting_for_name = State()
     waiting_for_phone = State()
     waiting_for_location = State()
+    waiting_for_brand = State()
     waiting_for_watch_model = State()
     waiting_for_payment = State()
     waiting_for_admin_approval = State()
 
-# Список моделей часов
-WATCH_MODELS = [
-    "Rolex Submariner",
-    "Omega Seamaster", 
-    "Tag Heuer Carrera",
-    "Breitling Navitimer",
-    "Patek Philippe Calatrava"
-]
+# Бренды часов
+WATCH_BRANDS = ["Rolex", "Patek Philippe", "Tissot"]
+
+# Модели часов по брендам с детальной информацией
+WATCH_MODELS_BY_BRAND = {
+    "Rolex": [
+        {
+            "name": "Submariner",
+            "price": "₽2,500,000",
+            "mechanism": "Автоматический механизм Rolex 3235",
+            "description": "Легендарные дайверские часы с водонепроницаемостью до 300м",
+            "photo": "https://images.unsplash.com/photo-1523170335258-f5b6c6e8e4c4?w=500&h=500&fit=crop",
+            "detailed_info": "Rolex Submariner - это культовые дайверские часы, которые стали символом надежности и престижа. Корпус из нержавеющей стали 904L, сапфировое стекло, водонепроницаемость до 300 метров. Механизм Rolex 3235 с запасом хода 70 часов."
+        },
+        {
+            "name": "GMT-Master II",
+            "price": "₽2,800,000",
+            "mechanism": "Автоматический механизм Rolex 3285",
+            "description": "Часы для путешественников с функцией GMT",
+            "photo": "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&h=500&fit=crop",
+            "detailed_info": "Rolex GMT-Master II - идеальные часы для путешественников. Позволяют отслеживать время в двух часовых поясах одновременно. Корпус из нержавеющей стали, керамический безель, водонепроницаемость до 100 метров."
+        }
+    ],
+    "Patek Philippe": [
+        {
+            "name": "Calatrava",
+            "price": "₽3,500,000",
+            "mechanism": "Ручной завод механизм 324 S C",
+            "description": "Элегантные классические часы из белого золота",
+            "photo": "https://images.unsplash.com/photo-1594534475808-b18fc33b045e?w=500&h=500&fit=crop",
+            "detailed_info": "Patek Philippe Calatrava - воплощение классической элегантности. Корпус из белого золота 18к, сапфировое стекло с антибликовым покрытием. Механизм ручного завода с запасом хода 45 часов. Символ престижа и изысканного вкуса."
+        },
+        {
+            "name": "Nautilus",
+            "price": "₽4,200,000",
+            "mechanism": "Автоматический механизм 26-330 S C",
+            "description": "Спортивные часы в стальном корпусе",
+            "photo": "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=500&h=500&fit=crop",
+            "detailed_info": "Patek Philippe Nautilus - спортивные часы с характерным дизайном в виде иллюминатора. Корпус из нержавеющей стали, водонепроницаемость до 120 метров. Автоматический механизм с запасом хода 45 часов."
+        }
+    ],
+    "Tissot": [
+        {
+            "name": "Le Locle",
+            "price": "₽45,000",
+            "mechanism": "Автоматический механизм ETA 2824-2",
+            "description": "Классические швейцарские часы с автоподзаводом",
+            "photo": "https://images.unsplash.com/photo-1542496658-e33a6d0d50f6?w=500&h=500&fit=crop",
+            "detailed_info": "Tissot Le Locle - классические швейцарские часы с элегантным дизайном. Корпус из нержавеющей стали, сапфировое стекло, водонепроницаемость до 30 метров. Автоматический механизм ETA 2824-2 с запасом хода 38 часов."
+        },
+        {
+            "name": "PRX",
+            "price": "₽35,000",
+            "mechanism": "Автоматический механизм Powermatic 80",
+            "description": "Современные спортивные часы в стиле 70-х",
+            "photo": "https://images.unsplash.com/photo-1523170335258-f5b6c6e8e4c4?w=500&h=500&fit=crop",
+            "detailed_info": "Tissot PRX - современная интерпретация классических спортивных часов 70-х годов. Корпус из нержавеющей стали, интегрированный браслет, водонепроницаемость до 100 метров. Механизм Powermatic 80 с запасом хода 80 часов."
+        }
+    ]
+}
 
 # Способы оплаты
 PAYMENT_METHODS = [
@@ -50,15 +103,391 @@ PAYMENT_METHODS = [
 @dp.message(Command("start"))
 async def start_command(message: types.Message):
     """Обработчик команды /start"""
+    # Создаем reply keyboard с основными кнопками меню
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🛒 Оформить заказ")],
+            [KeyboardButton(text="📚 Каталог"), KeyboardButton(text="🎯 Акции")],
+            [KeyboardButton(text="📞 Контакты"), KeyboardButton(text="❓ Помощь")]
+        ],
+        resize_keyboard=True,
+        persistent=True
+    )
+    
+    # Красивое приветственное сообщение с логотипом
+    welcome_text = """
+🕰️ <b>BRO WATCHES</b> 🕰️
+
+✨ <b>Добро пожаловать в мир премиальных часов!</b> ✨
+
+Мы предлагаем эксклюзивную коллекцию швейцарских часов от ведущих брендов. Каждые часы - это произведение искусства, сочетающее в себе безупречное качество, элегантный дизайн и надежность.
+
+🏆 <b>Наши преимущества:</b>
+• Оригинальные швейцарские часы
+• Гарантия подлинности
+• Индивидуальный подход к каждому клиенту
+• Быстрая доставка по всей России
+
+Выберите раздел в меню ниже 👇
+    """
+    
+    # Отправляем фото логотипа (используем красивое изображение часов)
+    logo_url = "https://images.unsplash.com/photo-1523170335258-f5b6c6e8e4c4?w=500&h=500&fit=crop&crop=center"
+    
+    try:
+        await message.answer_photo(
+            photo=logo_url,
+            caption=welcome_text,
+            parse_mode="HTML",
+            reply_markup=keyboard
+        )
+    except Exception as e:
+        # Если фото не загрузилось, отправляем только текст
+        logging.warning(f"Не удалось загрузить логотип: {e}")
+        await message.answer(
+            welcome_text,
+            parse_mode="HTML",
+            reply_markup=keyboard
+        )
+
+# Обработчики для кнопок главного меню
+@dp.message(lambda message: message.text == "📚 Каталог")
+async def catalog_menu(message: types.Message):
+    """Обработчик кнопки Каталог"""
+    await message.answer("📚 Загружаю каталог часов...")
+    
+    # Отправляем все часы по брендам
+    for brand, models in WATCH_MODELS_BY_BRAND.items():
+        await message.answer(f"🏷️ **{brand}**", parse_mode="Markdown")
+        
+        for i, model in enumerate(models, 1):
+            try:
+                await message.answer_photo(
+                    photo=model["photo"],
+                    caption=f"**{i}. {brand} {model['name']}**\n\n"
+                           f"💰 Цена: {model['price']}\n"
+                           f"⚙️ Механизм: {model['mechanism']}\n"
+                           f"📝 Описание: {model['description']}",
+                    parse_mode="Markdown"
+                )
+            except Exception as e:
+                # Если фото не загрузилось, отправляем только текст
+                logging.warning(f"Не удалось загрузить фото для {brand} {model['name']}: {e}")
+                await message.answer(
+                    f"**{i}. {brand} {model['name']}**\n\n"
+                    f"💰 Цена: {model['price']}\n"
+                    f"⚙️ Механизм: {model['mechanism']}\n"
+                    f"📝 Описание: {model['description']}",
+                    parse_mode="Markdown"
+                )
+        
+        # Небольшая пауза между брендами
+        await asyncio.sleep(0.5)
+    
+    # Добавляем reply кнопки для оформления заказа
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🛒 Оформить заказ")],
+            [KeyboardButton(text="🏠 Главное меню")]
+        ],
+        resize_keyboard=True,
+        persistent=True
+    )
+    
+    await message.answer(
+        "✅ Каталог загружен!\n\n"
+        "Для оформления заказа нажмите кнопку ниже:",
+        reply_markup=keyboard
+    )
+
+@dp.message(lambda message: message.text == "🎯 Акции")
+async def promotions_menu(message: types.Message):
+    """Обработчик кнопки Акции"""
+    await message.answer(
+        "🎯 <b>Акции и специальные предложения</b>\n\n"
+        "🔥 <b>Скидка 15% на все модели Tissot</b>\n"
+        "⏰ Действует до конца месяца\n\n"
+        "💎 <b>Бесплатная доставка</b>\n"
+        "🚚 При заказе от 100,000₽\n\n"
+        "🎁 <b>Подарочная упаковка</b>\n"
+        "🎀 При покупке любых часов\n\n"
+        "Для оформления заказа используйте кнопку ниже 👇",
+        parse_mode="HTML"
+    )
+    
+    # Добавляем reply кнопку для оформления заказа
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🛒 Оформить заказ")],
+            [KeyboardButton(text="🏠 Главное меню")]
+        ],
+        resize_keyboard=True,
+        persistent=True
+    )
+    
+    await message.answer(
+        "Выберите действие:",
+        reply_markup=keyboard
+    )
+
+@dp.message(lambda message: message.text == "📞 Контакты")
+async def contacts_menu(message: types.Message):
+    """Обработчик кнопки Контакты"""
+    await message.answer(
+        "📞 <b>Наши контакты</b>\n\n"
+        "🕰️ <b>BRO WATCHES</b>\n\n"
+        "📱 <b>Телефон:</b> +7 (999) 123-45-67\n"
+        "📧 <b>Email:</b> info@browatches.ru\n"
+        "🌐 <b>Сайт:</b> www.browatches.ru\n\n"
+        "📍 <b>Адрес:</b>\n"
+        "Москва, ул. Тверская, 15\n"
+        "м. Тверская, выход 3\n\n"
+        "🕒 <b>Режим работы:</b>\n"
+        "Пн-Пт: 10:00 - 20:00\n"
+        "Сб-Вс: 11:00 - 19:00\n\n"
+        "💬 <b>Telegram:</b> @browatches_support",
+        parse_mode="HTML"
+    )
+    
+    # Добавляем reply кнопку для оформления заказа
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🛒 Оформить заказ")],
+            [KeyboardButton(text="🏠 Главное меню")]
+        ],
+        resize_keyboard=True,
+        persistent=True
+    )
+    
+    await message.answer(
+        "Готовы оформить заказ?",
+        reply_markup=keyboard
+    )
+
+@dp.message(lambda message: message.text == "❓ Помощь")
+async def help_menu(message: types.Message):
+    """Обработчик кнопки Помощь"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🛒 Оформить заказ", callback_data="start_order")]
+        [InlineKeyboardButton(text="📚 Как оформить заказ", callback_data="help_order")],
+        [InlineKeyboardButton(text="💳 Способы оплаты", callback_data="help_payment")],
+        [InlineKeyboardButton(text="🚚 Доставка", callback_data="help_delivery")],
+        [InlineKeyboardButton(text="🔒 Гарантии", callback_data="help_warranty")]
     ])
     
     await message.answer(
-        "👋 Добро пожаловать в магазин часов!\n\n"
-        "Нажмите кнопку ниже, чтобы оформить заказ:",
+        "❓ <b>Помощь и поддержка</b>\n\n"
+        "Выберите интересующий вас раздел:",
+        parse_mode="HTML",
         reply_markup=keyboard
     )
+
+@dp.callback_query(lambda c: c.data == "help_order")
+async def help_order_callback(callback_query: CallbackQuery):
+    """Помощь по оформлению заказа"""
+    await callback_query.answer()
+    await callback_query.message.answer(
+        "📚 <b>Как оформить заказ</b>\n\n"
+        "1️⃣ Нажмите кнопку 'Каталог'\n"
+        "2️⃣ Выберите 'Оформить заказ'\n"
+        "3️⃣ Укажите ваши данные\n"
+        "4️⃣ Выберите модель часов\n"
+        "5️⃣ Выберите способ оплаты\n"
+        "6️⃣ Ожидайте подтверждения\n\n"
+        "💡 <b>Совет:</b> Для быстрого заказа отправьте геолокацию!",
+        parse_mode="HTML"
+    )
+    
+    # Добавляем reply кнопку для оформления заказа
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🛒 Оформить заказ")],
+            [KeyboardButton(text="🏠 Главное меню")]
+        ],
+        resize_keyboard=True,
+        persistent=True
+    )
+    
+    await callback_query.message.answer(
+        "Готовы оформить заказ?",
+        reply_markup=keyboard
+    )
+
+@dp.callback_query(lambda c: c.data == "help_payment")
+async def help_payment_callback(callback_query: CallbackQuery):
+    """Помощь по способам оплаты"""
+    await callback_query.answer()
+    await callback_query.message.answer(
+        "💳 <b>Способы оплаты</b>\n\n"
+        "💰 <b>Наличные</b> - при получении\n"
+        "💳 <b>Банковская карта</b> - онлайн\n"
+        "🏦 <b>Перевод на карту</b> - СБП\n"
+        "₿ <b>Криптовалюта</b> - Bitcoin, Ethereum\n\n"
+        "🔒 Все платежи защищены и безопасны",
+        parse_mode="HTML"
+    )
+    
+    # Добавляем reply кнопку для оформления заказа
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🛒 Оформить заказ")],
+            [KeyboardButton(text="🏠 Главное меню")]
+        ],
+        resize_keyboard=True,
+        persistent=True
+    )
+    
+    await callback_query.message.answer(
+        "Готовы оформить заказ?",
+        reply_markup=keyboard
+    )
+
+@dp.callback_query(lambda c: c.data == "help_delivery")
+async def help_delivery_callback(callback_query: CallbackQuery):
+    """Помощь по доставке"""
+    await callback_query.answer()
+    await callback_query.message.answer(
+        "🚚 <b>Доставка</b>\n\n"
+        "📍 <b>По Москве:</b> 1-2 дня (бесплатно от 100,000₽)\n"
+        "🇷🇺 <b>По России:</b> 3-7 дней (от 500₽)\n"
+        "🌍 <b>Международная:</b> 7-14 дней (от 2,000₽)\n\n"
+        "📦 <b>Упаковка:</b> Подарочная упаковка включена\n"
+        "🔒 <b>Страховка:</b> Полная страховка груза\n"
+        "📱 <b>Отслеживание:</b> SMS-уведомления",
+        parse_mode="HTML"
+    )
+    
+    # Добавляем reply кнопку для оформления заказа
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🛒 Оформить заказ")],
+            [KeyboardButton(text="🏠 Главное меню")]
+        ],
+        resize_keyboard=True,
+        persistent=True
+    )
+    
+    await callback_query.message.answer(
+        "Готовы оформить заказ?",
+        reply_markup=keyboard
+    )
+
+@dp.callback_query(lambda c: c.data == "help_warranty")
+async def help_warranty_callback(callback_query: CallbackQuery):
+    """Помощь по гарантиям"""
+    await callback_query.answer()
+    await callback_query.message.answer(
+        "🔒 <b>Гарантии и сертификаты</b>\n\n"
+        "✅ <b>Гарантия подлинности</b> - все часы оригинальные\n"
+        "📜 <b>Сертификаты</b> - полный пакет документов\n"
+        "🛡️ <b>Гарантия производителя</b> - от 2 лет\n"
+        "🔧 <b>Сервисное обслуживание</b> - авторизованные центры\n\n"
+        "💎 <b>Возврат и обмен:</b> 14 дней с момента покупки",
+        parse_mode="HTML"
+    )
+    
+    # Добавляем reply кнопку для оформления заказа
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🛒 Оформить заказ")],
+            [KeyboardButton(text="🏠 Главное меню")]
+        ],
+        resize_keyboard=True,
+        persistent=True
+    )
+    
+    await callback_query.message.answer(
+        "Готовы оформить заказ?",
+        reply_markup=keyboard
+    )
+
+# Команда для возврата в главное меню
+@dp.message(Command("menu"))
+async def menu_command(message: types.Message):
+    """Команда для возврата в главное меню"""
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🛒 Оформить заказ")],
+            [KeyboardButton(text="📚 Каталог"), KeyboardButton(text="🎯 Акции")],
+            [KeyboardButton(text="📞 Контакты"), KeyboardButton(text="❓ Помощь")]
+        ],
+        resize_keyboard=True,
+        persistent=True
+    )
+    
+    await message.answer(
+        "🏠 <b>Главное меню</b>\n\n"
+        "Выберите нужный раздел:",
+        parse_mode="HTML",
+        reply_markup=keyboard
+    )
+
+# Обработчик для кнопки "Оформить заказ"
+@dp.message(lambda message: message.text == "🛒 Оформить заказ")
+async def start_order_from_button(message: types.Message, state: FSMContext):
+    """Обработчик кнопки Оформить заказ"""
+    await state.set_state(OrderStates.waiting_for_name)
+    await message.answer(
+        "🛒 <b>Оформление заказа</b>\n\n"
+        "Введите ваше имя:",
+        parse_mode="HTML"
+    )
+
+# Обработчик для возврата в меню
+@dp.message(lambda message: message.text in ["🏠 Главное меню", "Назад", "Меню"])
+async def back_to_menu(message: types.Message):
+    """Возврат в главное меню"""
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🛒 Оформить заказ")],
+            [KeyboardButton(text="📚 Каталог"), KeyboardButton(text="🎯 Акции")],
+            [KeyboardButton(text="📞 Контакты"), KeyboardButton(text="❓ Помощь")]
+        ],
+        resize_keyboard=True,
+        persistent=True
+    )
+    
+    await message.answer(
+        "🏠 <b>Главное меню</b>\n\n"
+        "Выберите нужный раздел:",
+        parse_mode="HTML",
+        reply_markup=keyboard
+    )
+
+@dp.callback_query(lambda c: c.data == "view_catalog")
+async def view_catalog_callback(callback_query: CallbackQuery):
+    """Обработчик кнопки просмотра каталога"""
+    await callback_query.answer()
+    await callback_query.message.answer("📚 Загружаю каталог часов...")
+    
+    # Отправляем все часы по брендам
+    for brand, models in WATCH_MODELS_BY_BRAND.items():
+        await callback_query.message.answer(f"🏷️ **{brand}**", parse_mode="Markdown")
+        
+        for i, model in enumerate(models, 1):
+            try:
+                await callback_query.message.answer_photo(
+                    photo=model["photo"],
+                    caption=f"**{i}. {brand} {model['name']}**\n\n"
+                           f"💰 Цена: {model['price']}\n"
+                           f"⚙️ Механизм: {model['mechanism']}\n"
+                           f"📝 Описание: {model['description']}",
+                    parse_mode="Markdown"
+                )
+            except Exception as e:
+                # Если фото не загрузилось, отправляем только текст
+                logging.warning(f"Не удалось загрузить фото для {brand} {model['name']}: {e}")
+                await callback_query.message.answer(
+                    f"**{i}. {brand} {model['name']}**\n\n"
+                    f"💰 Цена: {model['price']}\n"
+                    f"⚙️ Механизм: {model['mechanism']}\n"
+                    f"📝 Описание: {model['description']}",
+                    parse_mode="Markdown"
+                )
+        
+        # Небольшая пауза между брендами
+        await asyncio.sleep(0.5)
+    
+    await callback_query.message.answer("✅ Каталог загружен! Для заказа используйте команду /start")
 
 @dp.callback_query(lambda c: c.data == "start_order")
 async def start_order_callback(callback_query: CallbackQuery, state: FSMContext):
@@ -66,7 +495,6 @@ async def start_order_callback(callback_query: CallbackQuery, state: FSMContext)
     await callback_query.answer()
     await state.set_state(OrderStates.waiting_for_name)
     await callback_query.message.answer(
-        "📝 Оформление заказа\n\n"
         "Введите ваше имя:"
     )
 
@@ -104,30 +532,112 @@ async def process_location(message: types.Message, state: FSMContext):
             'longitude': message.location.longitude
         }
         await state.update_data(location=location_data)
-        await state.set_state(OrderStates.waiting_for_watch_model)
+        await state.set_state(OrderStates.waiting_for_brand)
         
         # Убираем клавиатуру
         await message.answer("✅ Геолокация получена!", reply_markup=types.ReplyKeyboardRemove())
         
-        # Создаем клавиатуру с моделями часов
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=model, callback_data=f"model_{i}")] 
-            for i, model in enumerate(WATCH_MODELS)
-        ])
+        # Создаем reply клавиатуру с брендами часов
+        keyboard = ReplyKeyboardMarkup(
+            keyboard=[
+                [KeyboardButton(text="Rolex")],
+                [KeyboardButton(text="Patek Philippe")],
+                [KeyboardButton(text="Tissot")]
+            ],
+            resize_keyboard=True,
+            one_time_keyboard=True
+        )
         
-        await message.answer("⌚ Выберите модель часов:", reply_markup=keyboard)
+        await message.answer("Выберите бренд часов:", reply_markup=keyboard)
     else:
         await message.answer("❌ Пожалуйста, отправьте геолокацию, нажав на кнопку ниже.")
 
-@dp.callback_query(lambda c: c.data.startswith("model_"))
-async def process_watch_model(callback_query: CallbackQuery, state: FSMContext):
-    """Обработка выбора модели часов"""
-    await callback_query.answer()
-    model_index = int(callback_query.data.split("_")[1])
-    selected_model = WATCH_MODELS[model_index]
+@dp.message(OrderStates.waiting_for_brand)
+async def process_brand_selection(message: types.Message, state: FSMContext):
+    """Обработка выбора бренда часов"""
+    brand = message.text
     
-    await state.update_data(watch_model=selected_model)
+    # Проверяем, что выбранный бренд существует
+    if brand not in WATCH_BRANDS:
+        await message.answer("❌ Пожалуйста, выберите бренд из предложенных вариантов.")
+        return
+    
+    # Сохраняем выбранный бренд
+    await state.update_data(selected_brand=brand)
+    await state.set_state(OrderStates.waiting_for_watch_model)
+    
+    # Убираем клавиатуру
+    await message.answer("✅ Бренд выбран!", reply_markup=types.ReplyKeyboardRemove())
+    
+    # Получаем модели выбранного бренда
+    models = WATCH_MODELS_BY_BRAND[brand]
+    
+    # Отправляем каждую модель с фото и кнопкой выбора
+    for i, model in enumerate(models):
+        try:
+            # Создаем клавиатуру с кнопкой "Выбрать"
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="Выбрать", callback_data=f"select_model_{brand}_{i}")]
+            ])
+            
+            await message.answer_photo(
+                photo=model["photo"],
+                caption=f"⌚ {brand} {model['name']}\n\n"
+                       f"💰 Цена: {model['price']}\n"
+                       f"⚙️ Механизм: {model['mechanism']}\n"
+                       f"📝 Описание: {model['description']}",
+                reply_markup=keyboard
+            )
+        except Exception as e:
+            # Если фото не загрузилось, отправляем только текст
+            logging.warning(f"Не удалось загрузить фото для {brand} {model['name']}: {e}")
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="Выбрать", callback_data=f"select_model_{brand}_{i}")]
+            ])
+            
+            await message.answer(
+                f"⌚ {brand} {model['name']}\n\n"
+                f"💰 Цена: {model['price']}\n"
+                f"⚙️ Механизм: {model['mechanism']}\n"
+                f"📝 Описание: {model['description']}",
+                reply_markup=keyboard
+            )
+
+@dp.callback_query(lambda c: c.data.startswith("select_model_"))
+async def process_model_selection(callback_query: CallbackQuery, state: FSMContext):
+    """Обработка выбора конкретной модели часов"""
+    await callback_query.answer()
+    
+    # Парсим данные из callback_data
+    parts = callback_query.data.split("_")
+    brand = parts[2]
+    model_index = int(parts[3])
+    
+    # Получаем информацию о выбранной модели
+    model = WATCH_MODELS_BY_BRAND[brand][model_index]
+    full_model_name = f"{brand} {model['name']}"
+    
+    # Сохраняем выбранную модель
+    await state.update_data(watch_model=full_model_name)
     await state.set_state(OrderStates.waiting_for_payment)
+    
+    # Отправляем детальную информацию о выбранной модели
+    try:
+        await callback_query.message.answer_photo(
+            photo=model["photo"],
+            caption=f"✅ Выбрана модель: {full_model_name}\n\n"
+                   f"💰 Цена: {model['price']}\n"
+                   f"⚙️ Механизм: {model['mechanism']}\n"
+                   f"📝 Подробное описание: {model['detailed_info']}"
+        )
+    except Exception as e:
+        logging.warning(f"Не удалось загрузить фото для {full_model_name}: {e}")
+        await callback_query.message.answer(
+            f"✅ Выбрана модель: {full_model_name}\n\n"
+            f"💰 Цена: {model['price']}\n"
+            f"⚙️ Механизм: {model['mechanism']}\n"
+            f"📝 Подробное описание: {model['detailed_info']}"
+        )
     
     # Создаем клавиатуру со способами оплаты
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -136,7 +646,6 @@ async def process_watch_model(callback_query: CallbackQuery, state: FSMContext):
     ])
     
     await callback_query.message.answer(
-        f"✅ Выбрана модель: {selected_model}\n\n"
         "💳 Выберите способ оплаты:",
         reply_markup=keyboard
     )
@@ -157,6 +666,41 @@ async def process_payment_method(callback_query: CallbackQuery, state: FSMContex
     # Обрабатываем заказ
     await process_order_data(callback_query.from_user.id, order_data)
     await state.clear()
+
+@dp.message(Command("catalog"))
+async def catalog_command(message: types.Message):
+    """Команда для просмотра каталога часов"""
+    await message.answer("📚 Загружаю каталог часов...")
+    
+    # Отправляем все часы по брендам
+    for brand, models in WATCH_MODELS_BY_BRAND.items():
+        await message.answer(f"🏷️ **{brand}**", parse_mode="Markdown")
+        
+        for i, model in enumerate(models, 1):
+            try:
+                await message.answer_photo(
+                    photo=model["photo"],
+                    caption=f"**{i}. {brand} {model['name']}**\n\n"
+                           f"💰 Цена: {model['price']}\n"
+                           f"⚙️ Механизм: {model['mechanism']}\n"
+                           f"📝 Описание: {model['description']}",
+                    parse_mode="Markdown"
+                )
+            except Exception as e:
+                # Если фото не загрузилось, отправляем только текст
+                logging.warning(f"Не удалось загрузить фото для {brand} {model['name']}: {e}")
+                await message.answer(
+                    f"**{i}. {brand} {model['name']}**\n\n"
+                    f"💰 Цена: {model['price']}\n"
+                    f"⚙️ Механизм: {model['mechanism']}\n"
+                    f"📝 Описание: {model['description']}",
+                    parse_mode="Markdown"
+                )
+        
+        # Небольшая пауза между брендами
+        await asyncio.sleep(0.5)
+    
+    await message.answer("✅ Каталог загружен! Для заказа используйте команду /start")
 
 @dp.message(Command("admin"))
 async def admin_command(message: types.Message):

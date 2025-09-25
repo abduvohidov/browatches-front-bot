@@ -23,13 +23,10 @@ dp = Dispatcher(storage=storage)
 
 # Состояния для FSM
 class OrderStates(StatesGroup):
+    waiting_for_name = State()
+    waiting_for_phone = State()
+    waiting_for_location = State()
     waiting_for_admin_approval = State()
-
-# Состояния для корзины
-class CartStates(StatesGroup):
-    viewing_cart = State()
-    editing_quantity = State()
-    applying_promo = State()
 
 
 
@@ -176,6 +173,9 @@ user_carts = {}
 # Глобальное избранное пользователей
 user_favorites = {}
 
+# Отслеживание последних сообщений для редактирования
+user_last_messages = {}
+
 # Функции для работы с корзиной
 def get_user_cart(user_id: int) -> dict:
     """Получить корзину пользователя"""
@@ -306,6 +306,139 @@ def is_in_favorites(user_id: int, brand: str, model_index: int) -> bool:
     item_key = f"{brand}_{model_index}"
     return item_key in favorites
 
+# Функции для редактирования сообщений
+async def edit_message_safe(message: types.Message, text: str = None, photo: str = None, 
+                           reply_markup: InlineKeyboardMarkup = None, parse_mode: str = "HTML"):
+    """Безопасное редактирование сообщения с обработкой ошибок"""
+    user_id = message.from_user.id
+    
+    try:
+        if photo:
+            # Если есть фото, редактируем медиа
+            await bot.edit_message_media(
+                chat_id=message.chat.id,
+                message_id=message.message_id,
+                media=types.InputMediaPhoto(media=photo, caption=text, parse_mode=parse_mode),
+                reply_markup=reply_markup
+            )
+        else:
+            # Если нет фото, редактируем только текст
+            await bot.edit_message_text(
+                chat_id=message.chat.id,
+                message_id=message.message_id,
+                text=text,
+                parse_mode=parse_mode,
+                reply_markup=reply_markup
+            )
+        
+        # Сохраняем ID сообщения для дальнейшего редактирования
+        user_last_messages[user_id] = message.message_id
+        return True
+        
+    except Exception as e:
+        logging.warning(f"Не удалось отредактировать сообщение для пользователя {user_id}: {e}")
+        # Если редактирование не удалось, отправляем новое сообщение
+        try:
+            if photo:
+                new_message = await bot.send_photo(
+                    chat_id=message.chat.id,
+                    photo=photo,
+                    caption=text,
+                    parse_mode=parse_mode,
+                    reply_markup=reply_markup
+                )
+            else:
+                new_message = await bot.send_message(
+                    chat_id=message.chat.id,
+                    text=text,
+                    parse_mode=parse_mode,
+                    reply_markup=reply_markup
+                )
+            user_last_messages[user_id] = new_message.message_id
+            return True
+        except Exception as e2:
+            logging.error(f"Не удалось отправить новое сообщение для пользователя {user_id}: {e2}")
+            return False
+
+async def send_or_edit_message(message: types.Message, text: str = None, photo: str = None,
+                               reply_markup: InlineKeyboardMarkup = None, parse_mode: str = "HTML"):
+    """Отправить новое сообщение или отредактировать существующее"""
+    user_id = message.from_user.id
+    
+    # Если есть сохраненное сообщение, пытаемся его отредактировать
+    if user_id in user_last_messages:
+        try:
+            # Получаем сообщение по ID
+            chat_id = message.chat.id
+            message_id = user_last_messages[user_id]
+            
+            # Создаем объект сообщения для редактирования
+            message_to_edit = types.Message(
+                message_id=message_id,
+                chat=message.chat,
+                from_user=message.from_user,
+                date=message.date
+            )
+            
+            success = await edit_message_safe(message_to_edit, text, photo, reply_markup, parse_mode)
+            if success:
+                return
+        except Exception as e:
+            logging.warning(f"Не удалось отредактировать сообщение {user_id}: {e}")
+    
+    # Если редактирование не удалось, отправляем новое сообщение
+    try:
+        if photo:
+            # Проверяем URL фото перед отправкой
+            if photo.startswith('http'):
+                try:
+                    new_message = await bot.send_photo(
+                        chat_id=message.chat.id,
+                        photo=photo,
+                        caption=text,
+                        parse_mode=parse_mode,
+                        reply_markup=reply_markup
+                    )
+                except Exception as photo_error:
+                    logging.warning(f"Не удалось отправить фото {photo}: {photo_error}")
+                    # Отправляем только текст без фото
+                    new_message = await bot.send_message(
+                        chat_id=message.chat.id,
+                        text=text,
+                        parse_mode=parse_mode,
+                        reply_markup=reply_markup
+                    )
+            else:
+                # Если это не URL, отправляем как файл
+                new_message = await bot.send_photo(
+                    chat_id=message.chat.id,
+                    photo=types.FSInputFile(photo),
+                    caption=text,
+                    parse_mode=parse_mode,
+                    reply_markup=reply_markup
+                )
+        else:
+            new_message = await bot.send_message(
+                chat_id=message.chat.id,
+                text=text,
+                parse_mode=parse_mode,
+                reply_markup=reply_markup
+            )
+        user_last_messages[user_id] = new_message.message_id
+    except Exception as e:
+        logging.error(f"Не удалось отправить сообщение для пользователя {user_id}: {e}")
+        # В крайнем случае отправляем только текст
+        try:
+            new_message = await bot.send_message(
+                chat_id=message.chat.id,
+                text=text or "Произошла ошибка при загрузке контента",
+                parse_mode=parse_mode,
+                reply_markup=reply_markup
+            )
+            user_last_messages[user_id] = new_message.message_id
+        except Exception as e2:
+            logging.error(f"Критическая ошибка отправки сообщения: {e2}")
+
 # Функция поиска товаров
 def search_products(query: str) -> list:
     """Поиск товаров по запросу"""
@@ -338,20 +471,24 @@ async def show_cart(message: types.Message):
     cart = get_user_cart(user_id)
     
     if not cart["items"]:
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="📚 Перейти в каталог", callback_data="back_to_catalog")]
-        ])
+        keyboard = ReplyKeyboardMarkup(
+            keyboard=[
+                [KeyboardButton(text="📚 Каталог"), KeyboardButton(text="🛒 Корзина")]
+            ],
+            resize_keyboard=True,
+            persistent=True
+        )
         
-        await message.answer(
-            "🛍️ <b>Ваша корзина пуста</b>\n\n"
+        await send_or_edit_message(
+            message,
+            "🛒 <b>Ваша корзина пуста</b>\n\n"
             "Добавьте товары из каталога, чтобы оформить заказ.",
-            parse_mode="HTML",
             reply_markup=keyboard
         )
         return
     
     # Формируем сообщение с товарами в корзине
-    cart_text = "🛍️ <b>Ваша корзина</b>\n\n"
+    cart_text = "🛒 <b>Ваша корзина</b>\n\n"
     
     for i, item in enumerate(cart["items"]):
         cart_text += f"<b>{i+1}. {item['brand']} {item['name']}</b>\n"
@@ -360,21 +497,7 @@ async def show_cart(message: types.Message):
     
     # Рассчитываем итоговую сумму
     totals = calculate_cart_total(user_id)
-    
-    cart_text += f"📊 <b>Итого:</b>\n"
-    cart_text += f"💰 Сумма: ₽{totals['subtotal']:,}\n"
-    
-    if totals['discount'] > 0:
-        cart_text += f"🎯 Скидка: -₽{totals['discount']:,}\n"
-    
-    if cart.get("promo_code"):
-        promo_info = PROMO_CODES[cart["promo_code"]]
-        cart_text += f"🎫 Промокод: {cart['promo_code']} ({promo_info['description']})\n"
-    
     cart_text += f"💳 <b>К оплате: ₽{totals['total']:,}</b>\n"
-    
-    if totals['free_shipping']:
-        cart_text += f"🚚 <b>Бесплатная доставка!</b>\n"
     
     # Создаем клавиатуру для управления корзиной
     keyboard_buttons = []
@@ -383,24 +506,23 @@ async def show_cart(message: types.Message):
     for i, item in enumerate(cart["items"]):
         keyboard_buttons.append([
             InlineKeyboardButton(
-                text=f"✏️ {item['name'][:20]}...", 
+                text=f"✏️ {item['name'][:15]}... (x{item['quantity']})", 
                 callback_data=f"edit_item_{item['brand']}_{item['model_index']}"
             )
         ])
     
-    # Кнопки управления корзиной
+    # Основные кнопки управления корзиной
     keyboard_buttons.extend([
-        [InlineKeyboardButton(text="🎫 Применить промокод", callback_data="apply_promo")],
-        [InlineKeyboardButton(text="🗑️ Очистить корзину", callback_data="clear_cart")],
         [InlineKeyboardButton(text="💳 Оформить заказ", callback_data="checkout_cart")],
+        [InlineKeyboardButton(text="🗑️ Очистить корзину", callback_data="clear_cart")],
         [InlineKeyboardButton(text="📚 Назад в каталог", callback_data="back_to_catalog")]
     ])
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     
-    await message.answer(
+    await send_or_edit_message(
+        message,
         cart_text,
-        parse_mode="HTML",
         reply_markup=keyboard
     )
 
@@ -433,34 +555,13 @@ async def send_product_card(message: types.Message, brand: str, model_index: int
 {model['detailed_info']}
     """
     
-    # Отправляем первое фото с полной информацией
-    try:
-        await message.answer_photo(
+    # Отправляем или редактируем сообщение с фото
+    await send_or_edit_message(
+        message,
+        text=card_text,
             photo=model["photos"][0],
-            caption=card_text,
-            parse_mode="HTML",
             reply_markup=keyboard
         )
-    except Exception as e:
-        logging.warning(f"Не удалось загрузить главное фото для {brand} {model['name']}: {e}")
-        await message.answer(
-            card_text,
-            parse_mode="HTML",
-            reply_markup=keyboard
-        )
-    
-    # Отправляем дополнительные фото (360° или разные ракурсы)
-    for i, photo_url in enumerate(model["photos"][1:], 1):
-        try:
-            await asyncio.sleep(0.3)  # Небольшая пауза между фото
-            await message.answer_photo(
-                photo=photo_url,
-                caption=f"📸 <b>Ракурс {i+1}</b> - {model['brand']} {model['name']}",
-                parse_mode="HTML"
-            )
-        except Exception as e:
-            logging.warning(f"Не удалось загрузить дополнительное фото {i+1} для {brand} {model['name']}: {e}")
-            continue
 
 @dp.message(Command("start"))
 async def start_command(message: types.Message):
@@ -468,10 +569,7 @@ async def start_command(message: types.Message):
     # Создаем reply keyboard с основными кнопками меню
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📚 Каталог"), KeyboardButton(text="⭐ Избранное")],
-            [KeyboardButton(text="🛍️ Корзина"), KeyboardButton(text="🔍 Поиск")],
-            [KeyboardButton(text="🎯 Акции"), KeyboardButton(text="📞 Контакты")],
-            [KeyboardButton(text="❓ Помощь")]
+            [KeyboardButton(text="📚 Каталог"), KeyboardButton(text="🛒 Корзина")]
         ],
         resize_keyboard=True,
         persistent=True
@@ -483,13 +581,7 @@ async def start_command(message: types.Message):
 
 ✨ <b>Добро пожаловать в мир премиальных часов!</b> ✨
 
-Мы предлагаем эксклюзивную коллекцию швейцарских часов от ведущих брендов. Каждые часы - это произведение искусства, сочетающее в себе безупречное качество, элегантный дизайн и надежность.
-
-🏆 <b>Наши преимущества:</b>
-• Оригинальные швейцарские часы
-• Гарантия подлинности
-• Индивидуальный подход к каждому клиенту
-• Быстрая доставка по всей России
+Мы предлагаем эксклюзивную коллекцию швейцарских часов от ведущих брендов.
 
 🛍️ <b>Как сделать заказ:</b>
 1. Выберите "Каталог" для просмотра товаров
@@ -522,421 +614,102 @@ async def start_command(message: types.Message):
 @dp.message(lambda message: message.text == "📚 Каталог")
 async def catalog_menu(message: types.Message):
     """Обработчик кнопки Каталог"""
-    await message.answer("📚 Загружаю каталог часов...")
+    # Создаем reply keyboard с брендами
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="Rolex"), KeyboardButton(text="Patek Philippe")],
+            [KeyboardButton(text="Tissot")],
+            [KeyboardButton(text="🔙 Назад на главную")]
+        ],
+        resize_keyboard=True,
+        persistent=True
+    )
     
-    # Создаем inline клавиатуру с брендами для выбора
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🏷️ Rolex", callback_data="catalog_brand_Rolex")],
-        [InlineKeyboardButton(text="🏷️ Patek Philippe", callback_data="catalog_brand_Patek Philippe")],
-        [InlineKeyboardButton(text="🏷️ Tissot", callback_data="catalog_brand_Tissot")]
-    ])
-    
-    await message.answer(
+    await send_or_edit_message(
+        message,
         "📚 <b>Каталог часов</b>\n\n"
-        "Выберите бренд для просмотра детальных карточек товаров:",
-        parse_mode="HTML",
+        "Выберите бренд для просмотра товаров:",
         reply_markup=keyboard
     )
 
-@dp.message(lambda message: message.text == "🎯 Акции")
-async def promotions_menu(message: types.Message):
-    """Обработчик кнопки Акции"""
-    await message.answer(
-        "🎯 <b>Акции и специальные предложения</b>\n\n"
-        "🔥 <b>Скидка 15% на все модели Tissot</b>\n"
-        "⏰ Действует до конца месяца\n\n"
-        "💎 <b>Бесплатная доставка</b>\n"
-        "🚚 При заказе от 100,000₽\n\n"
-        "🎁 <b>Подарочная упаковка</b>\n"
-        "🎀 При покупке любых часов\n\n"
-        "Для оформления заказа перейдите в каталог и добавьте товары в корзину 👇",
-        parse_mode="HTML"
-    )
-    
-    # Добавляем reply кнопку для возврата в меню
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="🏠 Главное меню")]
-        ],
-        resize_keyboard=True,
-        persistent=True
-    )
-    
-    await message.answer(
-        "Выберите действие:",
-        reply_markup=keyboard
-    )
 
-@dp.message(lambda message: message.text == "📞 Контакты")
-async def contacts_menu(message: types.Message):
-    """Обработчик кнопки Контакты"""
-    await message.answer(
-        "📞 <b>Наши контакты</b>\n\n"
-        "🕰️ <b>BRO WATCHES</b>\n\n"
-        "📱 <b>Телефон:</b> +7 (999) 123-45-67\n"
-        "📧 <b>Email:</b> info@browatches.ru\n"
-        "🌐 <b>Сайт:</b> www.browatches.ru\n\n"
-        "📍 <b>Адрес:</b>\n"
-        "Москва, ул. Тверская, 15\n"
-        "м. Тверская, выход 3\n\n"
-        "🕒 <b>Режим работы:</b>\n"
-        "Пн-Пт: 10:00 - 20:00\n"
-        "Сб-Вс: 11:00 - 19:00\n\n"
-        "💬 <b>Telegram:</b> @browatches_support",
-        parse_mode="HTML"
-    )
-    
-    # Добавляем reply кнопку для возврата в меню
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="🏠 Главное меню")]
-        ],
-        resize_keyboard=True,
-        persistent=True
-    )
-    
-    await message.answer(
-        "Для оформления заказа перейдите в каталог и добавьте товары в корзину:",
-        reply_markup=keyboard
-    )
-
-@dp.message(lambda message: message.text == "🛍️ Корзина")
+@dp.message(lambda message: message.text == "🛒 Корзина")
 async def cart_menu(message: types.Message):
     """Обработчик кнопки Корзина"""
     await show_cart(message)
 
-@dp.message(lambda message: message.text == "⭐ Избранное")
-async def favorites_menu(message: types.Message):
-    """Обработчик кнопки Избранное"""
-    user_id = message.from_user.id
-    favorites = get_user_favorites(user_id)
+# Обработчики выбора брендов
+@dp.message(lambda message: message.text in ["Rolex", "Patek Philippe", "Tissot"])
+async def handle_brand_selection(message: types.Message):
+    """Обработка выбора бренда"""
+    brand = message.text
+    models = WATCH_MODELS_BY_BRAND[brand]
     
-    if not favorites:
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="📚 Перейти в каталог", callback_data="back_to_catalog")]
-        ])
+    # Показываем первый товар бренда
+    if models:
+        model = models[0]
+        # Создаем inline клавиатуру с кнопками навигации
+        keyboard_buttons = [
+            [InlineKeyboardButton(text="🛒 Добавить в корзину", callback_data=f"add_to_cart_{brand}_0")],
+            [InlineKeyboardButton(text="📖 Подробнее", callback_data=f"product_detail_{brand}_0")]
+        ]
         
-        await message.answer(
-            "⭐ <b>Ваше избранное пусто</b>\n\n"
-            "Добавьте товары в избранное, нажав на звездочку в каталоге.",
-            parse_mode="HTML",
-            reply_markup=keyboard
-        )
-        return
-    
-    # Формируем сообщение с избранными товарами
-    favorites_text = "⭐ <b>Ваше избранное</b>\n\n"
-    
-    for i, item_key in enumerate(favorites, 1):
-        brand, model_index = item_key.split("_")
-        model_index = int(model_index)
-        model = WATCH_MODELS_BY_BRAND[brand][model_index]
-        
-        favorites_text += f"<b>{i}. {model['brand']} {model['name']}</b>\n"
-        favorites_text += f"💰 Цена: {model['price']}\n"
-        favorites_text += f"📝 {model['description']}\n\n"
-    
-    # Создаем клавиатуру для управления избранным
-    keyboard_buttons = []
-    
-    # Кнопки для каждого товара
-    for item_key in favorites:
-        brand, model_index = item_key.split("_")
-        model_index = int(model_index)
-        model = WATCH_MODELS_BY_BRAND[brand][model_index]
+        # Добавляем кнопки навигации только если товаров больше одного
+        if len(models) > 1:
+            keyboard_buttons.append([
+                InlineKeyboardButton(text="⬅️", callback_data=f"prev_product_{brand}_0"), 
+                InlineKeyboardButton(text="➡️", callback_data=f"next_product_{brand}_0")
+            ])
         
         keyboard_buttons.append([
-            InlineKeyboardButton(
-                text=f"👁️ {model['name'][:20]}...", 
-                callback_data=f"view_product_{brand}_{model_index}"
-            )
+            InlineKeyboardButton(text="📚 Назад в каталог", callback_data="back_to_catalog")
         ])
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     
-    # Кнопки управления
-    keyboard_buttons.extend([
-        [InlineKeyboardButton(text="🗑️ Очистить избранное", callback_data="clear_favorites")],
-        [InlineKeyboardButton(text="📚 Назад в каталог", callback_data="back_to_catalog")]
-    ])
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
-    
-    await message.answer(
-        favorites_text,
-        parse_mode="HTML",
+        # Формируем текст карточки
+        card_text = f"""
+🕰️ <b>{model['brand']} {model['name']}</b>
+
+💰 <b>Цена:</b> {model['price']}
+⚙️ <b>Механизм:</b> {model['mechanism']}
+📝 <b>Описание:</b> {model['description']}
+
+📄 <b>Товар 1 из {len(models)}</b>
+        """
+        
+        # Отправляем или редактируем сообщение с фото
+        await send_or_edit_message(
+            message,
+            text=card_text,
+            photo=model["photo"],
         reply_markup=keyboard
     )
 
-@dp.message(lambda message: message.text == "🔍 Поиск")
-async def search_menu(message: types.Message):
-    """Обработчик кнопки Поиск"""
-    await message.answer(
-        "🔍 <b>Поиск часов</b>\n\n"
-        "Введите название часов или бренд для поиска:\n\n"
-        "💡 <b>Примеры поиска:</b>\n"
-        "• Rolex\n"
-        "• Submariner\n"
-        "• Tissot\n"
-        "• Patek Philippe\n\n"
-        "Просто введите текст для поиска:",
-        parse_mode="HTML"
-    )
-
-@dp.message(lambda message: message.text == "❓ Помощь")
-async def help_menu(message: types.Message):
-    """Обработчик кнопки Помощь"""
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📚 Как оформить заказ", callback_data="help_order")],
-        [InlineKeyboardButton(text="💳 Способы оплаты", callback_data="help_payment")],
-        [InlineKeyboardButton(text="🚚 Доставка", callback_data="help_delivery")],
-        [InlineKeyboardButton(text="🔒 Гарантии", callback_data="help_warranty")]
-    ])
-    
-    await message.answer(
-        "❓ <b>Помощь и поддержка</b>\n\n"
-        "Выберите интересующий вас раздел:",
-        parse_mode="HTML",
-        reply_markup=keyboard
-    )
-
-@dp.callback_query(lambda c: c.data == "help_order")
-async def help_order_callback(callback_query: CallbackQuery):
-    """Помощь по оформлению заказа"""
-    await callback_query.answer()
-    await callback_query.message.answer(
-        "📚 <b>Как оформить заказ</b>\n\n"
-        "1️⃣ Нажмите кнопку 'Каталог'\n"
-        "2️⃣ Выберите понравившиеся часы\n"
-        "3️⃣ Добавьте товары в корзину\n"
-        "4️⃣ Перейдите в корзину\n"
-        "5️⃣ Оформите заказ из корзины\n"
-        "6️⃣ Ожидайте подтверждения\n\n"
-        "💡 <b>Совет:</b> Вы можете добавить несколько товаров в корзину!",
-        parse_mode="HTML"
-    )
-    
-    # Добавляем reply кнопку для возврата в меню
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="🏠 Главное меню")]
-        ],
-        resize_keyboard=True,
-        persistent=True
-    )
-    
-    await callback_query.message.answer(
-        "Выберите действие:",
-        reply_markup=keyboard
-    )
-
-@dp.callback_query(lambda c: c.data == "help_payment")
-async def help_payment_callback(callback_query: CallbackQuery):
-    """Помощь по способам оплаты"""
-    await callback_query.answer()
-    await callback_query.message.answer(
-        "💳 <b>Способы оплаты</b>\n\n"
-        "💰 <b>Наличные</b> - при получении\n"
-        "💳 <b>Банковская карта</b> - онлайн\n"
-        "🏦 <b>Перевод на карту</b> - СБП\n"
-        "₿ <b>Криптовалюта</b> - Bitcoin, Ethereum\n\n"
-        "🔒 Все платежи защищены и безопасны",
-        parse_mode="HTML"
-    )
-    
-    # Добавляем reply кнопку для возврата в меню
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="🏠 Главное меню")]
-        ],
-        resize_keyboard=True,
-        persistent=True
-    )
-    
-    await callback_query.message.answer(
-        "Выберите действие:",
-        reply_markup=keyboard
-    )
-
-@dp.callback_query(lambda c: c.data == "help_delivery")
-async def help_delivery_callback(callback_query: CallbackQuery):
-    """Помощь по доставке"""
-    await callback_query.answer()
-    await callback_query.message.answer(
-        "🚚 <b>Доставка</b>\n\n"
-        "📍 <b>По Москве:</b> 1-2 дня (бесплатно от 100,000₽)\n"
-        "🇷🇺 <b>По России:</b> 3-7 дней (от 500₽)\n"
-        "🌍 <b>Международная:</b> 7-14 дней (от 2,000₽)\n\n"
-        "📦 <b>Упаковка:</b> Подарочная упаковка включена\n"
-        "🔒 <b>Страховка:</b> Полная страховка груза\n"
-        "📱 <b>Отслеживание:</b> SMS-уведомления",
-        parse_mode="HTML"
-    )
-    
-    # Добавляем reply кнопку для возврата в меню
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="🏠 Главное меню")]
-        ],
-        resize_keyboard=True,
-        persistent=True
-    )
-    
-    await callback_query.message.answer(
-        "Выберите действие:",
-        reply_markup=keyboard
-    )
-
-@dp.callback_query(lambda c: c.data == "help_warranty")
-async def help_warranty_callback(callback_query: CallbackQuery):
-    """Помощь по гарантиям"""
-    await callback_query.answer()
-    await callback_query.message.answer(
-        "🔒 <b>Гарантии и сертификаты</b>\n\n"
-        "✅ <b>Гарантия подлинности</b> - все часы оригинальные\n"
-        "📜 <b>Сертификаты</b> - полный пакет документов\n"
-        "🛡️ <b>Гарантия производителя</b> - от 2 лет\n"
-        "🔧 <b>Сервисное обслуживание</b> - авторизованные центры\n\n"
-        "💎 <b>Возврат и обмен:</b> 14 дней с момента покупки",
-        parse_mode="HTML"
-    )
-    
-    # Добавляем reply кнопку для возврата в меню
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="🏠 Главное меню")]
-        ],
-        resize_keyboard=True,
-        persistent=True
-    )
-    
-    await callback_query.message.answer(
-        "Выберите действие:",
-        reply_markup=keyboard
-    )
-
-# Команда для возврата в главное меню
-@dp.message(Command("menu"))
-async def menu_command(message: types.Message):
-    """Команда для возврата в главное меню"""
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="📚 Каталог"), KeyboardButton(text="⭐ Избранное")],
-            [KeyboardButton(text="🛍️ Корзина"), KeyboardButton(text="🎯 Акции")],
-            [KeyboardButton(text="📞 Контакты"), KeyboardButton(text="❓ Помощь")]
-        ],
-        resize_keyboard=True,
-        persistent=True
-    )
-    
-    await message.answer(
-        "🏠 <b>Главное меню</b>\n\n"
-        "Выберите нужный раздел:",
-        parse_mode="HTML",
-        reply_markup=keyboard
-    )
-
-
-# Обработчик для возврата в меню
-@dp.message(lambda message: message.text in ["🏠 Главное меню", "Назад", "Меню"])
-async def back_to_menu(message: types.Message):
+# Обработчик кнопки "Назад на главную"
+@dp.message(lambda message: message.text == "🔙 Назад на главную")
+async def back_to_main_menu(message: types.Message):
     """Возврат в главное меню"""
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📚 Каталог"), KeyboardButton(text="⭐ Избранное")],
-            [KeyboardButton(text="🛍️ Корзина"), KeyboardButton(text="🎯 Акции")],
-            [KeyboardButton(text="📞 Контакты"), KeyboardButton(text="❓ Помощь")]
+            [KeyboardButton(text="📚 Каталог"), KeyboardButton(text="🛒 Корзина")]
         ],
         resize_keyboard=True,
         persistent=True
     )
     
-    await message.answer(
+    await send_or_edit_message(
+        message,
         "🏠 <b>Главное меню</b>\n\n"
         "Выберите нужный раздел:",
-        parse_mode="HTML",
         reply_markup=keyboard
     )
 
-@dp.callback_query(lambda c: c.data == "view_catalog")
-async def view_catalog_callback(callback_query: CallbackQuery):
-    """Обработчик кнопки просмотра каталога"""
-    await callback_query.answer()
-    await callback_query.message.answer("📚 Загружаю каталог часов...")
-    
-    # Отправляем все часы по брендам
-    for brand, models in WATCH_MODELS_BY_BRAND.items():
-        await callback_query.message.answer(f"🏷️ **{brand}**", parse_mode="Markdown")
-        
-        for i, model in enumerate(models, 1):
-            try:
-                await callback_query.message.answer_photo(
-                    photo=model["photo"],
-                    caption=f"**{i}. {brand} {model['name']}**\n\n"
-                           f"💰 Цена: {model['price']}\n"
-                           f"⚙️ Механизм: {model['mechanism']}\n"
-                           f"📝 Описание: {model['description']}",
-                    parse_mode="Markdown"
-                )
-            except Exception as e:
-                # Если фото не загрузилось, отправляем только текст
-                logging.warning(f"Не удалось загрузить фото для {brand} {model['name']}: {e}")
-                await callback_query.message.answer(
-                    f"**{i}. {brand} {model['name']}**\n\n"
-                    f"💰 Цена: {model['price']}\n"
-                    f"⚙️ Механизм: {model['mechanism']}\n"
-                    f"📝 Описание: {model['description']}",
-                    parse_mode="Markdown"
-                )
-        
-        # Небольшая пауза между брендами
-        await asyncio.sleep(0.5)
-    
-    await callback_query.message.answer("✅ Каталог загружен! Добавьте понравившиеся товары в корзину для оформления заказа.")
 
 
 
-# Обработчик выбора бренда в каталоге
-@dp.callback_query(lambda c: c.data.startswith("catalog_brand_"))
-async def handle_catalog_brand_selection(callback_query: CallbackQuery):
-    """Обработка выбора бренда в каталоге"""
-    await callback_query.answer()
-    
-    brand = callback_query.data.split("_")[2]
-    models = WATCH_MODELS_BY_BRAND[brand]
-    
-    # Создаем inline клавиатуру с моделями выбранного бренда
-    keyboard_buttons = []
-    for i, model in enumerate(models):
-        keyboard_buttons.append([
-            InlineKeyboardButton(
-                text=f"⌚ {model['name']} - {model['price']}", 
-                callback_data=f"view_product_{brand}_{i}"
-            )
-        ])
-    
-    # Добавляем кнопку "Назад к брендам"
-    keyboard_buttons.append([InlineKeyboardButton(text="🔙 Назад к брендам", callback_data="back_to_brands")])
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
-    
-    await callback_query.message.edit_text(
-        f"🏷️ <b>{brand}</b>\n\n"
-        f"Выберите модель для просмотра детальной карточки:",
-        parse_mode="HTML",
-        reply_markup=keyboard
-    )
 
-# Обработчик просмотра карточки товара
-@dp.callback_query(lambda c: c.data.startswith("view_product_"))
-async def handle_view_product(callback_query: CallbackQuery):
-    """Обработка просмотра карточки товара"""
-    await callback_query.answer()
-    
-    parts = callback_query.data.split("_")
-    brand = parts[2]
-    model_index = int(parts[3])
-    
-    # Отправляем детальную карточку товара
-    await send_product_card(callback_query.message, brand, model_index)
+
 
 # Обработчик "Добавить в корзину"
 @dp.callback_query(lambda c: c.data.startswith("add_to_cart_"))
@@ -952,18 +725,31 @@ async def handle_add_to_cart(callback_query: CallbackQuery):
     # Добавляем товар в корзину
     add_to_cart(callback_query.from_user.id, brand, model_index, 1)
     
-    # Получаем информацию о корзине
-    cart = get_user_cart(callback_query.from_user.id)
-    total_items = sum(item["quantity"] for item in cart["items"])
+    # Обновляем кнопку, показывая что товар добавлен
+    keyboard_buttons = [
+        [InlineKeyboardButton(text="✅ Добавлено в корзину", callback_data="noop")],
+        [InlineKeyboardButton(text="📖 Подробнее", callback_data=f"product_detail_{brand}_{model_index}")]
+    ]
     
-    await callback_query.message.answer(
-        f"🛒 <b>Товар добавлен в корзину!</b>\n\n"
-        f"⌚ {model['brand']} {model['name']}\n"
-        f"💰 Цена: {model['price']}\n\n"
-        f"📦 В корзине: {total_items} товар(ов)\n\n"
-        f"Для просмотра корзины нажмите кнопку '🛍️ Корзина' в главном меню.",
-        parse_mode="HTML"
-    )
+    # Добавляем кнопки навигации только если товаров больше одного
+    models = WATCH_MODELS_BY_BRAND[brand]
+    if len(models) > 1:
+        keyboard_buttons.append([
+            InlineKeyboardButton(text="⬅️", callback_data=f"prev_product_{brand}_{model_index}"), 
+            InlineKeyboardButton(text="➡️", callback_data=f"next_product_{brand}_{model_index}")
+        ])
+    
+    keyboard_buttons.append([
+        InlineKeyboardButton(text="📚 Назад в каталог", callback_data="back_to_catalog")
+    ])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+    
+    # Обновляем сообщение
+    try:
+        await callback_query.message.edit_reply_markup(reply_markup=keyboard)
+    except Exception as e:
+        logging.warning(f"Не удалось обновить клавиатуру: {e}")
 
 
 # Обработчик "Назад в каталог"
@@ -972,76 +758,114 @@ async def handle_back_to_catalog(callback_query: CallbackQuery):
     """Обработка возврата в каталог"""
     await callback_query.answer()
     
-    # Создаем inline клавиатуру с брендами для выбора
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🏷️ Rolex", callback_data="catalog_brand_Rolex")],
-        [InlineKeyboardButton(text="🏷️ Patek Philippe", callback_data="catalog_brand_Patek Philippe")],
-        [InlineKeyboardButton(text="🏷️ Tissot", callback_data="catalog_brand_Tissot")]
-    ])
+    # Создаем reply keyboard с брендами
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="Rolex"), KeyboardButton(text="Patek Philippe")],
+            [KeyboardButton(text="Tissot")],
+            [KeyboardButton(text="🔙 Назад на главную")]
+        ],
+        resize_keyboard=True,
+        persistent=True
+    )
     
-    await callback_query.message.edit_text(
+    # Создаем объект сообщения для редактирования
+    message = types.Message(
+        message_id=callback_query.message.message_id,
+        chat=callback_query.message.chat,
+        from_user=callback_query.from_user,
+        date=callback_query.message.date
+    )
+    
+    await send_or_edit_message(
+        message,
         "📚 <b>Каталог часов</b>\n\n"
-        "Выберите бренд для просмотра детальных карточек товаров:",
-        parse_mode="HTML",
+        "Выберите бренд для просмотра товаров:",
         reply_markup=keyboard
     )
 
-# Обработчик "Назад к брендам"
-@dp.callback_query(lambda c: c.data == "back_to_brands")
-async def handle_back_to_brands(callback_query: CallbackQuery):
-    """Обработка возврата к выбору брендов"""
+# Обработчик навигации по товарам
+@dp.callback_query(lambda c: c.data.startswith("next_product_") or c.data.startswith("prev_product_"))
+async def handle_product_navigation(callback_query: CallbackQuery):
+    """Обработка навигации по товарам"""
     await callback_query.answer()
     
-    # Создаем inline клавиатуру с брендами для выбора
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🏷️ Rolex", callback_data="catalog_brand_Rolex")],
-        [InlineKeyboardButton(text="🏷️ Patek Philippe", callback_data="catalog_brand_Patek Philippe")],
-        [InlineKeyboardButton(text="🏷️ Tissot", callback_data="catalog_brand_Tissot")]
+    parts = callback_query.data.split("_")
+    direction = parts[0]  # "next" или "prev"
+    brand = parts[2]
+    current_index = int(parts[3])
+    models = WATCH_MODELS_BY_BRAND[brand]
+    
+    # Вычисляем новый индекс
+    if direction == "next":
+        new_index = (current_index + 1) % len(models)
+    else:  # prev
+        new_index = (current_index - 1) % len(models)
+    
+    model = models[new_index]
+    
+    # Создаем клавиатуру для нового товара
+    keyboard_buttons = [
+        [InlineKeyboardButton(text="🛒 Добавить в корзину", callback_data=f"add_to_cart_{brand}_{new_index}")],
+        [InlineKeyboardButton(text="📖 Подробнее", callback_data=f"product_detail_{brand}_{new_index}")]
+    ]
+    
+    # Добавляем кнопки навигации только если товаров больше одного
+    if len(models) > 1:
+        keyboard_buttons.append([
+            InlineKeyboardButton(text="⬅️", callback_data=f"prev_product_{brand}_{new_index}"), 
+            InlineKeyboardButton(text="➡️", callback_data=f"next_product_{brand}_{new_index}")
+        ])
+    
+    keyboard_buttons.append([
+        InlineKeyboardButton(text="📚 Назад в каталог", callback_data="back_to_catalog")
     ])
     
-    await callback_query.message.edit_text(
-        "📚 <b>Каталог часов</b>\n\n"
-        "Выберите бренд для просмотра детальных карточек товаров:",
-        parse_mode="HTML",
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+    
+    # Формируем текст карточки
+    card_text = f"""
+🕰️ <b>{model['brand']} {model['name']}</b>
+
+💰 <b>Цена:</b> {model['price']}
+⚙️ <b>Механизм:</b> {model['mechanism']}
+📝 <b>Описание:</b> {model['description']}
+
+📄 <b>Товар {new_index + 1} из {len(models)}</b>
+    """
+    
+    # Обновляем сообщение
+    try:
+        await callback_query.message.edit_media(
+            media=types.InputMediaPhoto(media=model["photo"], caption=card_text, parse_mode="HTML"),
         reply_markup=keyboard
     )
+    except Exception as e:
+        logging.warning(f"Не удалось обновить сообщение: {e}")
 
-
-
-@dp.message(Command("catalog"))
-async def catalog_command(message: types.Message):
-    """Команда для просмотра каталога часов"""
-    await message.answer("📚 Загружаю каталог часов...")
+# Обработчик детального просмотра товара
+@dp.callback_query(lambda c: c.data.startswith("product_detail_"))
+async def handle_product_detail(callback_query: CallbackQuery):
+    """Обработка детального просмотра товара"""
+    await callback_query.answer()
     
-    # Отправляем все часы по брендам
-    for brand, models in WATCH_MODELS_BY_BRAND.items():
-        await message.answer(f"🏷️ **{brand}**", parse_mode="Markdown")
-        
-        for i, model in enumerate(models, 1):
-            try:
-                await message.answer_photo(
-                    photo=model["photo"],
-                    caption=f"**{i}. {brand} {model['name']}**\n\n"
-                           f"💰 Цена: {model['price']}\n"
-                           f"⚙️ Механизм: {model['mechanism']}\n"
-                           f"📝 Описание: {model['description']}",
-                    parse_mode="Markdown"
-                )
-            except Exception as e:
-                # Если фото не загрузилось, отправляем только текст
-                logging.warning(f"Не удалось загрузить фото для {brand} {model['name']}: {e}")
-                await message.answer(
-                    f"**{i}. {brand} {model['name']}**\n\n"
-                    f"💰 Цена: {model['price']}\n"
-                    f"⚙️ Механизм: {model['mechanism']}\n"
-                    f"📝 Описание: {model['description']}",
-                    parse_mode="Markdown"
-                )
-        
-        # Небольшая пауза между брендами
-        await asyncio.sleep(0.5)
+    parts = callback_query.data.split("_")
+    brand = parts[2]
+    model_index = int(parts[3])
     
-    await message.answer("✅ Каталог загружен! Добавьте понравившиеся товары в корзину для оформления заказа.")
+    # Создаем объект сообщения для редактирования
+    message = types.Message(
+        message_id=callback_query.message.message_id,
+        chat=callback_query.message.chat,
+        from_user=callback_query.from_user,
+        date=callback_query.message.date
+    )
+    
+    # Показываем детальную карточку товара
+    await send_product_card(message, brand, model_index)
+
+
+
 
 @dp.message(Command("admin"))
 async def admin_command(message: types.Message):
@@ -1050,6 +874,56 @@ async def admin_command(message: types.Message):
         await message.answer("Админ панель:\n/orders - просмотр заказов")
     else:
         await message.answer("У вас нет прав доступа")
+
+async def send_order_to_admin(user_id: int, order_data: dict):
+    """Отправка заказа администратору"""
+    try:
+        # Формируем сообщение для админа
+        admin_message = f"🛒 <b>Новый заказ!</b>\n\n"
+        admin_message += f"👤 <b>Клиент:</b> {order_data.get('name', 'Не указано')}\n"
+        admin_message += f"📞 <b>Телефон:</b> {order_data.get('phone', 'Не указано')}\n"
+        admin_message += f"📍 <b>Локация:</b> {order_data.get('location', 'Не указано')}\n"
+        admin_message += f"🆔 <b>ID пользователя:</b> {user_id}\n\n"
+        
+        # Добавляем информацию о товарах
+        admin_message += f"📦 <b>Товары в заказе:</b>\n"
+        cart_items = order_data.get('cart_items', [])
+        total_price = 0
+        
+        for i, item in enumerate(cart_items, 1):
+            admin_message += f"{i}. {item['brand']} {item['name']}\n"
+            admin_message += f"   💰 Цена: {item['price']}\n"
+            admin_message += f"   📦 Количество: {item['quantity']}\n\n"
+            
+            # Рассчитываем общую стоимость
+            price_str = item['price'].replace("₽", "").replace(",", "").replace(" ", "")
+            try:
+                price = int(price_str)
+                total_price += price * item['quantity']
+            except ValueError:
+                continue
+        
+        admin_message += f"💳 <b>Общая стоимость: ₽{total_price:,}</b>\n"
+        
+        # Создаем клавиатуру для админа
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="✅ Принять заказ", callback_data=f"accept_order_{user_id}"),
+                InlineKeyboardButton(text="❌ Отклонить заказ", callback_data=f"reject_order_{user_id}")
+            ]
+        ])
+        
+        await bot.send_message(
+            ADMIN_CHAT_ID,
+            admin_message,
+            parse_mode="HTML",
+            reply_markup=keyboard
+        )
+
+        logging.info(f"Заказ отправлен администратору: {order_data}")
+        
+    except Exception as e:
+        logging.error(f"Ошибка при отправке заказа администратору: {e}")
 
 async def process_order_data(user_id: int, order_data: dict):
     """Обработка данных заказа"""
@@ -1268,10 +1142,10 @@ async def handle_reject_order(callback_query: CallbackQuery):
         logging.error(f"Ошибка при отклонении заказа: {e}")
         await callback_query.answer("Ошибка при отклонении заказа")
 
-# Обработчики для корзины
+
 @dp.callback_query(lambda c: c.data.startswith("edit_item_"))
 async def handle_edit_item(callback_query: CallbackQuery):
-    """Обработка редактирования товара в корзине"""
+    """Редактирование товара в корзине"""
     await callback_query.answer()
     
     parts = callback_query.data.split("_")
@@ -1290,7 +1164,18 @@ async def handle_edit_item(callback_query: CallbackQuery):
             break
     
     if not item:
-        await callback_query.message.answer("❌ Товар не найден в корзине")
+        # Создаем объект сообщения для редактирования
+        message = types.Message(
+            message_id=callback_query.message.message_id,
+            chat=callback_query.message.chat,
+            from_user=callback_query.from_user,
+            date=callback_query.message.date
+        )
+        
+        await send_or_edit_message(
+            message,
+            "❌ Товар не найден в корзине"
+        )
         return
     
     # Создаем клавиатуру для редактирования
@@ -1300,24 +1185,32 @@ async def handle_edit_item(callback_query: CallbackQuery):
             InlineKeyboardButton(text=f"📦 {item['quantity']}", callback_data="noop"),
             InlineKeyboardButton(text="➕", callback_data=f"increase_{brand}_{model_index}")
         ],
-        [InlineKeyboardButton(text="🗑️ Удалить", callback_data=f"remove_{brand}_{model_index}")],
+        [InlineKeyboardButton(text="🗑️ Удалить", callback_data=f"remove_item_{brand}_{model_index}")],
         [InlineKeyboardButton(text="🔙 Назад в корзину", callback_data="back_to_cart")]
     ])
     
-    await callback_query.message.answer(
+    # Создаем объект сообщения для редактирования
+    message = types.Message(
+        message_id=callback_query.message.message_id,
+        chat=callback_query.message.chat,
+        from_user=callback_query.from_user,
+        date=callback_query.message.date
+    )
+    
+    await send_or_edit_message(
+        message,
         f"✏️ <b>Редактирование товара</b>\n\n"
         f"⌚ {model['brand']} {model['name']}\n"
         f"💰 Цена: {model['price']}\n"
         f"📦 Количество: {item['quantity']}\n\n"
         f"Используйте кнопки для изменения количества:",
-        parse_mode="HTML",
         reply_markup=keyboard
     )
 
 @dp.callback_query(lambda c: c.data.startswith("increase_"))
 async def handle_increase_quantity(callback_query: CallbackQuery):
     """Увеличить количество товара"""
-    await callback_query.answer()
+    await callback_query.answer("✅ Количество увеличено!")
     
     parts = callback_query.data.split("_")
     brand = parts[1]
@@ -1329,13 +1222,20 @@ async def handle_increase_quantity(callback_query: CallbackQuery):
             item["quantity"] += 1
             break
     
-    await callback_query.message.answer("✅ Количество увеличено!")
-    await show_cart(callback_query.message)
+    # Создаем объект сообщения для редактирования
+    message = types.Message(
+        message_id=callback_query.message.message_id,
+        chat=callback_query.message.chat,
+        from_user=callback_query.from_user,
+        date=callback_query.message.date
+    )
+    
+    await show_cart(message)
 
 @dp.callback_query(lambda c: c.data.startswith("decrease_"))
 async def handle_decrease_quantity(callback_query: CallbackQuery):
     """Уменьшить количество товара"""
-    await callback_query.answer()
+    await callback_query.answer("✅ Количество уменьшено!")
     
     parts = callback_query.data.split("_")
     brand = parts[1]
@@ -1343,60 +1243,37 @@ async def handle_decrease_quantity(callback_query: CallbackQuery):
     
     update_cart_quantity(callback_query.from_user.id, brand, model_index, -1)
     
-    await callback_query.message.answer("✅ Количество уменьшено!")
-    await show_cart(callback_query.message)
+    # Создаем объект сообщения для редактирования
+    message = types.Message(
+        message_id=callback_query.message.message_id,
+        chat=callback_query.message.chat,
+        from_user=callback_query.from_user,
+        date=callback_query.message.date
+    )
+    
+    await show_cart(message)
 
-@dp.callback_query(lambda c: c.data.startswith("remove_"))
+@dp.callback_query(lambda c: c.data.startswith("remove_item_"))
 async def handle_remove_item(callback_query: CallbackQuery):
-    """Удалить товар из корзины"""
+    """Удаление товара из корзины"""
     await callback_query.answer("🗑️ Товар удален из корзины!")
     
     parts = callback_query.data.split("_")
-    brand = parts[1]
-    model_index = int(parts[2])
+    brand = parts[2]
+    model_index = int(parts[3])
     
+    # Удаляем товар из корзины
     remove_from_cart(callback_query.from_user.id, brand, model_index)
-    await show_cart(callback_query.message)
-
-@dp.callback_query(lambda c: c.data == "apply_promo")
-async def handle_apply_promo(callback_query: CallbackQuery, state: FSMContext):
-    """Обработка применения промокода"""
-    await callback_query.answer()
-    await state.set_state(CartStates.applying_promo)
     
-    await callback_query.message.answer(
-        "🎫 <b>Применение промокода</b>\n\n"
-        "Введите промокод для получения скидки:\n\n"
-        "💡 <b>Доступные промокоды:</b>\n"
-        "• WELCOME10 - скидка 10% для новых клиентов\n"
-        "• VIP15 - скидка 15% для VIP клиентов\n"
-        "• SUMMER20 - летняя скидка 20%\n"
-        "• FREESHIP - бесплатная доставка",
-        parse_mode="HTML"
+    # Создаем объект сообщения для редактирования
+    message = types.Message(
+        message_id=callback_query.message.message_id,
+        chat=callback_query.message.chat,
+        from_user=callback_query.from_user,
+        date=callback_query.message.date
     )
-
-@dp.message(CartStates.applying_promo)
-async def process_promo_code(message: types.Message, state: FSMContext):
-    """Обработка введенного промокода"""
-    promo_code = message.text.strip().upper()
     
-    if apply_promo_code(message.from_user.id, promo_code):
-        promo_info = PROMO_CODES[promo_code]
-        await message.answer(
-            f"✅ <b>Промокод применен!</b>\n\n"
-            f"🎫 Код: {promo_code}\n"
-            f"📝 Описание: {promo_info['description']}\n\n"
-            f"Скидка учтена в корзине.",
-            parse_mode="HTML"
-        )
-    else:
-        await message.answer(
-            "❌ <b>Неверный промокод</b>\n\n"
-            "Проверьте правильность введенного кода и попробуйте снова.",
-            parse_mode="HTML"
-        )
-    
-    await state.clear()
+    # Показываем обновленную корзину
     await show_cart(message)
 
 @dp.callback_query(lambda c: c.data == "clear_cart")
@@ -1406,14 +1283,26 @@ async def handle_clear_cart(callback_query: CallbackQuery):
     
     clear_cart(callback_query.from_user.id)
     
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📚 Перейти в каталог", callback_data="back_to_catalog")]
-    ])
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="📚 Каталог"), KeyboardButton(text="🛒 Корзина")]
+        ],
+        resize_keyboard=True,
+        persistent=True
+    )
     
-    await callback_query.message.answer(
-        "🛍️ <b>Корзина очищена</b>\n\n"
+    # Создаем объект сообщения для редактирования
+    message = types.Message(
+        message_id=callback_query.message.message_id,
+        chat=callback_query.message.chat,
+        from_user=callback_query.from_user,
+        date=callback_query.message.date
+    )
+    
+    await send_or_edit_message(
+        message,
+        "🛒 <b>Корзина очищена</b>\n\n"
         "Добавьте товары из каталога, чтобы оформить заказ.",
-        parse_mode="HTML",
         reply_markup=keyboard
     )
 
@@ -1431,8 +1320,7 @@ async def handle_checkout_cart(callback_query: CallbackQuery, state: FSMContext)
     
     # Сохраняем информацию о корзине в состоянии
     await state.update_data(cart_items=cart["items"])
-    await state.update_data(promo_code=cart.get("promo_code"))
-    await state.set_state(OrderStates.waiting_for_admin_approval)
+    await state.set_state(OrderStates.waiting_for_name)
     
     # Показываем информацию о заказе
     totals = calculate_cart_total(user_id)
@@ -1440,11 +1328,6 @@ async def handle_checkout_cart(callback_query: CallbackQuery, state: FSMContext)
     order_text = "💳 <b>Оформление заказа</b>\n\n"
     order_text += f"📦 Товаров в корзине: {len(cart['items'])}\n"
     order_text += f"💰 К оплате: ₽{totals['total']:,}\n\n"
-    
-    if cart.get("promo_code"):
-        promo_info = PROMO_CODES[cart["promo_code"]]
-        order_text += f"🎫 Промокод: {cart['promo_code']} ({promo_info['description']})\n\n"
-    
     order_text += "Для оформления заказа введите ваше имя:"
     
     await callback_query.message.answer(
@@ -1456,100 +1339,133 @@ async def handle_checkout_cart(callback_query: CallbackQuery, state: FSMContext)
 async def handle_back_to_cart(callback_query: CallbackQuery):
     """Возврат в корзину"""
     await callback_query.answer()
-    await show_cart(callback_query.message)
-
-# Обработчики для избранного
-@dp.callback_query(lambda c: c.data.startswith("toggle_favorite_"))
-async def handle_toggle_favorite(callback_query: CallbackQuery):
-    """Переключение товара в избранном"""
-    await callback_query.answer()
     
-    parts = callback_query.data.split("_")
-    brand = parts[2]
-    model_index = int(parts[3])
-    
-    user_id = callback_query.from_user.id
-    
-    if is_in_favorites(user_id, brand, model_index):
-        remove_from_favorites(user_id, brand, model_index)
-        await callback_query.message.answer("❌ Товар удален из избранного")
-    else:
-        add_to_favorites(user_id, brand, model_index)
-        await callback_query.message.answer("⭐ Товар добавлен в избранное")
-
-@dp.callback_query(lambda c: c.data == "clear_favorites")
-async def handle_clear_favorites(callback_query: CallbackQuery):
-    """Очистка избранного"""
-    await callback_query.answer("🗑️ Избранное очищено!")
-    
-    user_id = callback_query.from_user.id
-    user_favorites[user_id] = []
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📚 Перейти в каталог", callback_data="back_to_catalog")]
-    ])
-    
-    await callback_query.message.answer(
-        "⭐ <b>Избранное очищено</b>\n\n"
-        "Добавьте товары в избранное, нажав на звездочку в каталоге.",
-        parse_mode="HTML",
-        reply_markup=keyboard
+    # Создаем объект сообщения для редактирования
+    message = types.Message(
+        message_id=callback_query.message.message_id,
+        chat=callback_query.message.chat,
+        from_user=callback_query.from_user,
+        date=callback_query.message.date
     )
+    
+    await show_cart(message)
 
-# Обработчик текстовых сообщений для поиска
-@dp.message()
-async def handle_text_message(message: types.Message):
-    """Обработчик текстовых сообщений для поиска"""
-    # Игнорируем команды и кнопки меню
-    if message.text in ["📚 Каталог", "⭐ Избранное", "🛍️ Корзина", "🔍 Поиск", 
-                       "🎯 Акции", "📞 Контакты", "❓ Помощь", "🏠 Главное меню", 
-                       "Назад", "Меню"]:
-        return
-    
-    # Выполняем поиск
-    results = search_products(message.text)
-    
-    if not results:
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="📚 Перейти в каталог", callback_data="back_to_catalog")]
-        ])
-        
-        await message.answer(
-            f"🔍 <b>Поиск: '{message.text}'</b>\n\n"
-            "❌ Ничего не найдено\n\n"
-            "Попробуйте изменить запрос или перейдите в каталог для просмотра всех товаров.",
-            parse_mode="HTML",
-            reply_markup=keyboard
-        )
-        return
-    
-    # Показываем результаты поиска
-    search_text = f"🔍 <b>Результаты поиска: '{message.text}'</b>\n\n"
-    search_text += f"Найдено товаров: {len(results)}\n\n"
-    
-    # Создаем клавиатуру с результатами
-    keyboard_buttons = []
-    
-    for brand, model_index, model in results[:10]:  # Ограничиваем до 10 результатов
-        keyboard_buttons.append([
-            InlineKeyboardButton(
-                text=f"⌚ {model['name']} - {model['price']}", 
-                callback_data=f"view_product_{brand}_{model_index}"
-            )
-        ])
-    
-    # Добавляем кнопку "Назад в каталог"
-    keyboard_buttons.append([
-        InlineKeyboardButton(text="📚 Назад в каталог", callback_data="back_to_catalog")
-    ])
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+# Обработчик для пустых callback-запросов
+@dp.callback_query(lambda c: c.data == "noop")
+async def handle_noop(callback_query: CallbackQuery):
+    """Обработка пустых callback-запросов"""
+    await callback_query.answer()
+
+# Обработчики для оформления заказа
+@dp.message(OrderStates.waiting_for_name)
+async def process_name(message: types.Message, state: FSMContext):
+    """Обработка ввода имени"""
+    await state.update_data(name=message.text)
+    await state.set_state(OrderStates.waiting_for_phone)
     
     await message.answer(
-        search_text,
+        f"✅ Имя сохранено: {message.text}\n\n"
+        "Теперь введите ваш номер телефона:",
+        parse_mode="HTML"
+    )
+
+@dp.message(OrderStates.waiting_for_phone)
+async def process_phone(message: types.Message, state: FSMContext):
+    """Обработка ввода телефона"""
+    await state.update_data(phone=message.text)
+    await state.set_state(OrderStates.waiting_for_location)
+    
+    # Создаем клавиатуру для отправки локации
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="📍 Отправить локацию", request_location=True)],
+            [KeyboardButton(text="❌ Пропустить")]
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+    
+    await message.answer(
+        f"✅ Телефон сохранен: {message.text}\n\n"
+        "Теперь отправьте вашу локацию для доставки:",
         parse_mode="HTML",
         reply_markup=keyboard
     )
+
+@dp.message(OrderStates.waiting_for_location)
+async def process_location(message: types.Message, state: FSMContext):
+    """Обработка ввода локации"""
+    if message.text == "❌ Пропустить":
+        await state.update_data(location="Не указано")
+    else:
+        await state.update_data(location=message.text)
+    
+    # Получаем все данные заказа
+    order_data = await state.get_data()
+    
+    # Отправляем заказ администратору
+    await send_order_to_admin(message.from_user.id, order_data)
+    
+    # Очищаем корзину
+    clear_cart(message.from_user.id)
+    
+    # Сбрасываем состояние
+    await state.clear()
+    
+    # Возвращаем в главное меню
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="📚 Каталог"), KeyboardButton(text="🛒 Корзина")]
+        ],
+        resize_keyboard=True,
+        persistent=True
+    )
+    
+    await message.answer(
+        "✅ <b>Заказ отправлен администратору!</b>\n\n"
+        "Мы свяжемся с вами в ближайшее время для подтверждения заказа.",
+        parse_mode="HTML",
+        reply_markup=keyboard
+    )
+
+# Обработчик геолокации
+@dp.message(lambda message: message.location is not None, OrderStates.waiting_for_location)
+async def handle_location_message(message: types.Message, state: FSMContext):
+    """Обработка отправленной геолокации"""
+    latitude = message.location.latitude
+    longitude = message.location.longitude
+    location_text = f"Широта: {latitude}, Долгота: {longitude}"
+    
+    await state.update_data(location=location_text)
+    
+    # Получаем все данные заказа
+    order_data = await state.get_data()
+    
+    # Отправляем заказ администратору
+    await send_order_to_admin(message.from_user.id, order_data)
+    
+    # Очищаем корзину
+    clear_cart(message.from_user.id)
+    
+    # Сбрасываем состояние
+    await state.clear()
+    
+    # Возвращаем в главное меню
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="📚 Каталог"), KeyboardButton(text="🛒 Корзина")]
+        ],
+        resize_keyboard=True,
+        persistent=True
+    )
+    
+    await message.answer(
+        "✅ <b>Заказ отправлен администратору!</b>\n\n"
+        "Мы свяжемся с вами в ближайшее время для подтверждения заказа.",
+        parse_mode="HTML",
+        reply_markup=keyboard
+    )
+
 
 async def main():
     """Главная функция запуска бота"""

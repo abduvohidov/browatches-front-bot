@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import json
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, ReplyKeyboardMarkup, KeyboardButton
@@ -31,7 +30,7 @@ class OrderStates(StatesGroup):
 
 
 # Бренды часов
-WATCH_BRANDS = ["Rolex", "Patek Philippe", "Tissot"]
+WATCH_BRANDS = ["Rolex", "Patek Philippe", "Tissot", "Omega", "IBSO", "Gusala"]
 
 # Модели часов по брендам с детальной информацией
 WATCH_MODELS_BY_BRAND = {
@@ -53,24 +52,6 @@ WATCH_MODELS_BY_BRAND = {
             "material": "Нержавеющая сталь 904L",
             "water_resistance": "300 метров",
             "warranty": "5 лет официальной гарантии"
-        },
-        {
-            "name": "GMT-Master II",
-            "price": "₽2,800,000",
-            "mechanism": "Автоматический механизм Rolex 3285",
-            "description": "Часы для путешественников с функцией GMT",
-            "photo": "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&h=500&fit=crop",
-            "detailed_info": "Rolex GMT-Master II - идеальные часы для путешественников. Позволяют отслеживать время в двух часовых поясах одновременно. Корпус из нержавеющей стали, керамический безель, водонепроницаемость до 100 метров.",
-            "photos": [
-                "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&h=500&fit=crop",
-                "https://images.unsplash.com/photo-1523170335258-f5b6c6e8e4c4?w=500&h=500&fit=crop",
-                "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=500&h=500&fit=crop"
-            ],
-            "brand": "Rolex",
-            "category": "Мужские",
-            "material": "Нержавеющая сталь + керамический безель",
-            "water_resistance": "100 метров",
-            "warranty": "5 лет официальной гарантии"
         }
     ],
     "Patek Philippe": [
@@ -90,24 +71,6 @@ WATCH_MODELS_BY_BRAND = {
             "category": "Унисекс",
             "material": "Белое золото 18к",
             "water_resistance": "30 метров",
-            "warranty": "Пожизненная гарантия"
-        },
-        {
-            "name": "Nautilus",
-            "price": "₽4,200,000",
-            "mechanism": "Автоматический механизм 26-330 S C",
-            "description": "Спортивные часы в стальном корпусе",
-            "photo": "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=500&h=500&fit=crop",
-            "detailed_info": "Patek Philippe Nautilus - спортивные часы с характерным дизайном в виде иллюминатора. Корпус из нержавеющей стали, водонепроницаемость до 120 метров. Автоматический механизм с запасом хода 45 часов.",
-            "photos": [
-                "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=500&h=500&fit=crop",
-                "https://images.unsplash.com/photo-1523170335258-f5b6c6e8e4c4?w=500&h=500&fit=crop",
-                "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&h=500&fit=crop"
-            ],
-            "brand": "Patek Philippe",
-            "category": "Спортивные",
-            "material": "Нержавеющая сталь",
-            "water_resistance": "120 метров",
             "warranty": "Пожизненная гарантия"
         }
     ],
@@ -129,35 +92,12 @@ WATCH_MODELS_BY_BRAND = {
             "material": "Нержавеющая сталь",
             "water_resistance": "30 метров",
             "warranty": "2 года официальной гарантии"
-        },
-        {
-            "name": "PRX",
-            "price": "₽35,000",
-            "mechanism": "Автоматический механизм Powermatic 80",
-            "description": "Современные спортивные часы в стиле 70-х",
-            "photo": "https://images.unsplash.com/photo-1523170335258-f5b6c6e8e4c4?w=500&h=500&fit=crop",
-            "detailed_info": "Tissot PRX - современная интерпретация классических спортивных часов 70-х годов. Корпус из нержавеющей стали, интегрированный браслет, водонепроницаемость до 100 метров. Механизм Powermatic 80 с запасом хода 80 часов.",
-            "photos": [
-                "https://images.unsplash.com/photo-1523170335258-f5b6c6e8e4c4?w=500&h=500&fit=crop",
-                "https://images.unsplash.com/photo-1542496658-e33a6d0d50f6?w=500&h=500&fit=crop",
-                "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&h=500&fit=crop"
-            ],
-            "brand": "Tissot",
-            "category": "Спортивные",
-            "material": "Нержавеющая сталь",
-            "water_resistance": "100 метров",
-            "warranty": "2 года официальной гарантии"
         }
     ]
 }
 
 # Способы оплаты
-PAYMENT_METHODS = [
-    "Наличные",
-    "Банковская карта",
-    "Перевод на карту",
-    "Криптовалюта"
-]
+PAYMENT_METHODS = ["Перевод на карту"]
 
 # Промокоды и скидки
 PROMO_CODES = {
@@ -885,15 +825,24 @@ async def send_order_to_admin(user_id: int, order_data: dict):
         admin_message += f"📍 <b>Локация:</b> {order_data.get('location', 'Не указано')}\n"
         admin_message += f"🆔 <b>ID пользователя:</b> {user_id}\n\n"
         
-        # Добавляем информацию о товарах
+        # Добавляем детальную информацию о товарах
         admin_message += f"📦 <b>Товары в заказе:</b>\n"
         cart_items = order_data.get('cart_items', [])
         total_price = 0
         
         for i, item in enumerate(cart_items, 1):
-            admin_message += f"{i}. {item['brand']} {item['name']}\n"
+            # Получаем полную информацию о товаре
+            brand = item['brand']
+            model_index = item['model_index']
+            model = WATCH_MODELS_BY_BRAND[brand][model_index]
+            
+            admin_message += f"{i}. <b>{item['brand']} {item['name']}</b>\n"
             admin_message += f"   💰 Цена: {item['price']}\n"
-            admin_message += f"   📦 Количество: {item['quantity']}\n\n"
+            admin_message += f"   📦 Количество: {item['quantity']}\n"
+            admin_message += f"   ⚙️ Механизм: {model['mechanism']}\n"
+            admin_message += f"   🔧 Материал: {model['material']}\n"
+            admin_message += f"   💧 Водозащита: {model['water_resistance']}\n"
+            admin_message += f"   🛡️ Гарантия: {model['warranty']}\n\n"
             
             # Рассчитываем общую стоимость
             price_str = item['price'].replace("₽", "").replace(",", "").replace(" ", "")
@@ -913,12 +862,38 @@ async def send_order_to_admin(user_id: int, order_data: dict):
             ]
         ])
         
-        await bot.send_message(
-            ADMIN_CHAT_ID,
-            admin_message,
-            parse_mode="HTML",
-            reply_markup=keyboard
-        )
+        # Отправляем сообщение с фото первого товара (если есть)
+        if cart_items:
+            first_item = cart_items[0]
+            brand = first_item['brand']
+            model_index = first_item['model_index']
+            model = WATCH_MODELS_BY_BRAND[brand][model_index]
+            
+            try:
+                await bot.send_photo(
+                    ADMIN_CHAT_ID,
+                    photo=model['photo'],
+                    caption=admin_message,
+                    parse_mode="HTML",
+                    reply_markup=keyboard
+                )
+            except Exception as photo_error:
+                logging.warning(f"Не удалось отправить фото: {photo_error}")
+                # Если фото не отправилось, отправляем только текст
+                await bot.send_message(
+                    ADMIN_CHAT_ID,
+                    admin_message,
+                    parse_mode="HTML",
+                    reply_markup=keyboard
+                )
+        else:
+            # Если нет товаров в корзине, отправляем только текст
+            await bot.send_message(
+                ADMIN_CHAT_ID,
+                admin_message,
+                parse_mode="HTML",
+                reply_markup=keyboard
+            )
 
         logging.info(f"Заказ отправлен администратору: {order_data}")
         
@@ -1018,6 +993,10 @@ async def handle_location(message: types.Message, state: FSMContext):
         latitude = message.location.latitude
         longitude = message.location.longitude
         
+        # Получаем корзину пользователя
+        cart = get_user_cart(message.from_user.id)
+        cart_items = cart.get('items', [])
+        
         # Создаем данные заказа с геолокацией
         order_data = {
             'user_id': message.from_user.id,
@@ -1028,6 +1007,7 @@ async def handle_location(message: types.Message, state: FSMContext):
                 'latitude': latitude,
                 'longitude': longitude
             },
+            'cart_items': cart_items,
             'watch_model': 'Не указано',
             'payment_method': 'Не указано'
         }
@@ -1039,6 +1019,45 @@ async def handle_location(message: types.Message, state: FSMContext):
             longitude=longitude
         )
         
+        # Формируем детальное сообщение для админа
+        admin_message = f"📍 <b>Получена геолокация от клиента!</b>\n\n"
+        admin_message += f"👤 <b>Клиент:</b> {order_data['name']}\n"
+        admin_message += f"🆔 <b>ID пользователя:</b> {message.from_user.id}\n"
+        admin_message += f"📍 <b>Локация:</b> {latitude}, {longitude}\n\n"
+        
+        # Добавляем информацию о товарах в корзине
+        if cart_items:
+            admin_message += f"📦 <b>Товары в корзине:</b>\n"
+            total_price = 0
+            
+            for i, item in enumerate(cart_items, 1):
+                # Получаем полную информацию о товаре
+                brand = item['brand']
+                model_index = item['model_index']
+                model = WATCH_MODELS_BY_BRAND[brand][model_index]
+                
+                admin_message += f"{i}. <b>{item['brand']} {item['name']}</b>\n"
+                admin_message += f"   💰 Цена: {item['price']}\n"
+                admin_message += f"   📦 Количество: {item['quantity']}\n"
+                admin_message += f"   ⚙️ Механизм: {model['mechanism']}\n"
+                admin_message += f"   🔧 Материал: {model['material']}\n"
+                admin_message += f"   💧 Водозащита: {model['water_resistance']}\n"
+                admin_message += f"   🛡️ Гарантия: {model['warranty']}\n\n"
+                
+                # Рассчитываем общую стоимость
+                price_str = item['price'].replace("₽", "").replace(",", "").replace(" ", "")
+                try:
+                    price = int(price_str)
+                    total_price += price * item['quantity']
+                except ValueError:
+                    continue
+            
+            admin_message += f"💳 <b>Общая стоимость: ₽{total_price:,}</b>\n\n"
+        else:
+            admin_message += f"📦 <b>Корзина пуста</b>\n\n"
+        
+        admin_message += f"Оформить заказ или отклонить?"
+        
         # Уведомляем админа с кнопками принятия/отклонения
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [
@@ -1047,15 +1066,38 @@ async def handle_location(message: types.Message, state: FSMContext):
             ]
         ])
         
-        await bot.send_message(
-            ADMIN_CHAT_ID,
-            f"📍 Получена геолокация от клиента!\n\n"
-            f"👤 Клиент: {order_data['name']}\n"
-            f"🆔 ID пользователя: {message.from_user.id}\n"
-            f"📍 Локация: {latitude}, {longitude}\n\n"
-            f"Оформить заказ или отклонить?",
-            reply_markup=keyboard
-        )
+        # Отправляем сообщение с фото первого товара (если есть)
+        if cart_items:
+            first_item = cart_items[0]
+            brand = first_item['brand']
+            model_index = first_item['model_index']
+            model = WATCH_MODELS_BY_BRAND[brand][model_index]
+            
+            try:
+                await bot.send_photo(
+                    ADMIN_CHAT_ID,
+                    photo=model['photo'],
+                    caption=admin_message,
+                    parse_mode="HTML",
+                    reply_markup=keyboard
+                )
+            except Exception as photo_error:
+                logging.warning(f"Не удалось отправить фото: {photo_error}")
+                # Если фото не отправилось, отправляем только текст
+                await bot.send_message(
+                    ADMIN_CHAT_ID,
+                    admin_message,
+                    parse_mode="HTML",
+                    reply_markup=keyboard
+                )
+        else:
+            # Если нет товаров в корзине, отправляем только текст
+            await bot.send_message(
+                ADMIN_CHAT_ID,
+                admin_message,
+                parse_mode="HTML",
+                reply_markup=keyboard
+            )
         
         # Устанавливаем состояние ожидания подтверждения админа
         from aiogram.fsm.context import FSMContext

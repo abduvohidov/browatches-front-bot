@@ -26,91 +26,58 @@ class OrderStates(StatesGroup):
     waiting_for_name = State()
     waiting_for_phone = State()
     waiting_for_location = State()
+    waiting_for_confirmation = State()
     waiting_for_admin_approval = State()
 
 
 
 # Бренды часов
-WATCH_BRANDS = ["Rolex", "Patek Philippe", "Tissot"]
+WATCH_BRANDS = ["Rolex"]
 
 # Модели часов по брендам с детальной информацией
 WATCH_MODELS_BY_BRAND = {
     "Rolex": [
         {
-            "name": "GMT Master II",
-            "price": "₽3,200,000",
-            "mechanism": "Автоматический механизм Rolex 3285",
-            "description": "Профессиональные часы для путешественников с функцией GMT",
-            "photo": "https://images.unsplash.com/photo-1594534475808-b18fc33b045e?w=500&h=500&fit=crop",
-            "detailed_info": "Rolex GMT Master II - это профессиональные часы для путешественников, позволяющие отслеживать время в двух часовых поясах одновременно. Корпус из нержавеющей стали 904L с керамическим безелем, механизм Rolex 3285 с запасом хода 70 часов.",
-            "photos": [
-                "https://images.unsplash.com/photo-1594534475808-b18fc33b045e?w=500&h=500&fit=crop",
-                "https://images.unsplash.com/photo-1523170335258-f5b6c6e8e4c4?w=500&h=500&fit=crop",
-                "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&h=500&fit=crop"
-            ],
-            "brand": "Rolex",
-            "category": "Профессиональные",
-            "material": "Нержавеющая сталь 904L",
-            "water_resistance": "100 метров",
-            "warranty": "5 лет официальной гарантии"
-        },
-        {
-            "name": "Datejust",
-            "price": "₽1,800,000",
-            "mechanism": "Автоматический механизм Rolex 3235",
+            "name": "Rolex DayDate",
+            "color": "Белый",
+            "price": "220.000 uzs",
+            "mechanism": "Батарейный механизм",
             "description": "Классические элегантные часы с отображением даты",
-            "photo": "https://images.unsplash.com/photo-1542496658-e33a6d0d50f6?w=500&h=500&fit=crop",
-            "detailed_info": "Rolex Datejust - это классические элегантные часы, сочетающие в себе стиль и функциональность. Первая в мире автоматическая модель с отображением даты. Корпус из нержавеющей стали 904L, сапфировое стекло, механизм Rolex 3235 с запасом хода 70 часов.",
-            "photos": [
-                "https://images.unsplash.com/photo-1542496658-e33a6d0d50f6?w=500&h=500&fit=crop",
-                "https://images.unsplash.com/photo-1523170335258-f5b6c6e8e4c4?w=500&h=500&fit=crop",
-                "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&h=500&fit=crop"
-            ],
+            "photo": "https://www.lenkersdorfer.com/upload/rolex_v7/product/landscape/upright_m128239-0005.webp",
+            "detailed_info": "Rolex DayDate - это классические элегантные часы, сочетающие в себе стиль и функциональность. Первая в мире автоматическая модель с отображением даты. Корпус из нержавеющей стали 904L, сапфировое стекло, механизм Rolex 3235 с запасом хода 70 часов.",
+            "photos": ["https://www.lenkersdorfer.com/upload/rolex_v7/product/landscape/upright_m128239-0005.webp"  ],
             "brand": "Rolex",
             "category": "Классические",
             "material": "Нержавеющая сталь 904L",
-            "water_resistance": "100 метров",
-            "warranty": "5 лет официальной гарантии"
-        }
-    ],
-    "Patek Philippe": [
+            "water_resistance": "Незащищенный",
+        },
         {
-            "name": "Calatrava",
-            "price": "₽3,500,000",
-            "mechanism": "Ручной завод механизм 324 S C",
-            "description": "Элегантные классические часы из белого золота",
-            "photo": "https://images.unsplash.com/photo-1594534475808-b18fc33b045e?w=500&h=500&fit=crop",
-            "detailed_info": "Patek Philippe Calatrava - воплощение классической элегантности. Корпус из белого золота 18к, сапфировое стекло с антибликовым покрытием. Механизм ручного завода с запасом хода 45 часов. Символ престижа и изысканного вкуса.",
-            "photos": [
-                "https://images.unsplash.com/photo-1594534475808-b18fc33b045e?w=500&h=500&fit=crop",
-                "https://images.unsplash.com/photo-1523170335258-f5b6c6e8e4c4?w=500&h=500&fit=crop",
-                "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&h=500&fit=crop"
-            ],
-            "brand": "Patek Philippe",
-            "category": "Унисекс",
-            "material": "Белое золото 18к",
-            "water_resistance": "30 метров",
-            "warranty": "Пожизненная гарантия"
-        }
-    ],
-    "Tissot": [
+            "name": "Rolex Oyster Perpetual",
+            "color": "Белый",
+            "price": "220.000 uzs",
+            "mechanism": "Батарейный механизм",
+            "description": "Классические элегантные часы с отображением даты",
+            "photo": "https://privilegia.uz/wp-content/uploads/2020/06/m114300-0004-e1593514972475.png",
+            "detailed_info": "Rolex DayDate - это классические элегантные часы, сочетающие в себе стиль и функциональность. Первая в мире автоматическая модель с отображением даты. Корпус из нержавеющей стали 904L, сапфировое стекло, механизм Rolex 3235 с запасом хода 70 часов.",
+            "photos": ["https://privilegia.uz/wp-content/uploads/2020/06/m114300-0004-e1593514972475.png"],
+            "brand": "Rolex",
+            "category": "Классические",
+            "material": "Нержавеющая сталь 904L",
+            "water_resistance": "Незащищенный",
+        },
         {
-            "name": "Le Locle",
-            "price": "₽45,000",
-            "mechanism": "Автоматический механизм ETA 2824-2",
-            "description": "Классические швейцарские часы с автоподзаводом",
-            "photo": "https://images.unsplash.com/photo-1542496658-e33a6d0d50f6?w=500&h=500&fit=crop",
-            "detailed_info": "Tissot Le Locle - классические швейцарские часы с элегантным дизайном. Корпус из нержавеющей стали, сапфировое стекло, водонепроницаемость до 30 метров. Автоматический механизм ETA 2824-2 с запасом хода 38 часов.",
-            "photos": [
-                "https://images.unsplash.com/photo-1542496658-e33a6d0d50f6?w=500&h=500&fit=crop",
-                "https://images.unsplash.com/photo-1523170335258-f5b6c6e8e4c4?w=500&h=500&fit=crop",
-                "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&h=500&fit=crop"
-            ],
-            "brand": "Tissot",
-            "category": "Мужские",
-            "material": "Нержавеющая сталь",
-            "water_resistance": "30 метров",
-            "warranty": "2 года официальной гарантии"
+            "name": "Rolex Oyster Perpetual",
+            "color": "Цифиный",
+            "price": "220.000 uzs",
+            "mechanism": "Батарейный механизм",
+            "description": "Классические элегантные часы с отображением даты",
+            "photo": "https://content.thewosgroup.com/productimage/17304444/17304444_1.png",
+            "detailed_info": "Rolex DayDate - это классические элегантные часы, сочетающие в себе стиль и функциональность. Первая в мире автоматическая модель с отображением даты. Корпус из нержавеющей стали 904L, сапфировое стекло, механизм Rolex 3235 с запасом хода 70 часов.",
+            "photos": ["https://content.thewosgroup.com/productimage/17304444/17304444_1.png"],
+            "brand": "Rolex",
+            "category": "Классические",
+            "material": "Нержавеющая сталь 904L",
+            "water_resistance": "Незащищенный",
         }
     ]
 }
@@ -122,8 +89,6 @@ PAYMENT_METHODS = ["Перевод на карту", "Оплата наличн�
 # Глобальная корзина пользователей (в реальном проекте лучше использовать базу данных)
 user_carts = {}
 
-# Глобальное избранное пользователей
-user_favorites = {}
 
 # Отслеживание последних сообщений для редактирования
 user_last_messages = {}
@@ -158,6 +123,7 @@ def add_to_cart(user_id: int, brand: str, model_index: int, quantity: int = 1):
         "name": model["name"],
         "price": model["price"],
         "photo": model["photo"],
+        "color": model["color"],
         "quantity": quantity
     })
 
@@ -191,7 +157,7 @@ def calculate_cart_total(user_id: int) -> dict:
     
     for item in cart["items"]:
         # Извлекаем числовое значение цены (убираем символы валюты и запятые)
-        price_str = item["price"].replace("₽", "").replace(",", "").replace(" ", "")
+        price_str = item["price"].replace("₽", "").replace("uzs", "").replace(",", "").replace(" ", "").replace(".", "")
         try:
             price = int(price_str)
             subtotal += price * item["quantity"]
@@ -204,34 +170,6 @@ def calculate_cart_total(user_id: int) -> dict:
     }
 
 
-# Функции для работы с избранным
-def get_user_favorites(user_id: int) -> list:
-    """Получить избранное пользователя"""
-    if user_id not in user_favorites:
-        user_favorites[user_id] = []
-    return user_favorites[user_id]
-
-def add_to_favorites(user_id: int, brand: str, model_index: int):
-    """Добавить товар в избранное"""
-    favorites = get_user_favorites(user_id)
-    item_key = f"{brand}_{model_index}"
-    
-    if item_key not in favorites:
-        favorites.append(item_key)
-
-def remove_from_favorites(user_id: int, brand: str, model_index: int):
-    """Удалить товар из избранного"""
-    favorites = get_user_favorites(user_id)
-    item_key = f"{brand}_{model_index}"
-    
-    if item_key in favorites:
-        favorites.remove(item_key)
-
-def is_in_favorites(user_id: int, brand: str, model_index: int) -> bool:
-    """Проверить, есть ли товар в избранном"""
-    favorites = get_user_favorites(user_id)
-    item_key = f"{brand}_{model_index}"
-    return item_key in favorites
 
 # Функции для редактирования сообщений
 async def edit_message_safe(message: types.Message, text: str = None, photo: str = None, 
@@ -419,12 +357,13 @@ async def show_cart(message: types.Message):
     
     for i, item in enumerate(cart["items"]):
         cart_text += f"<b>{i+1}. {item['brand']} {item['name']}</b>\n"
+        cart_text += f"🎨 <b>Цвет:</b> {item['color']}\n"
         cart_text += f"💰 Цена: {item['price']}\n"
         cart_text += f"📦 Количество: {item['quantity']}\n\n"
     
     # Рассчитываем итоговую сумму
     totals = calculate_cart_total(user_id)
-    cart_text += f"💳 <b>К оплате: ₽{totals['total']:,}</b>\n"
+    cart_text += f"💳 <b>К оплате: {totals['total']:,} uzs</b>\n"
     
     # Создаем клавиатуру для управления корзиной
     keyboard_buttons = []
@@ -461,8 +400,7 @@ async def send_product_card(message: types.Message, brand: str, model_index: int
     
     # Создаем inline клавиатуру с кнопками действий
     keyboard_buttons = [
-        [InlineKeyboardButton(text="🛒 Добавить в корзину", callback_data=f"add_to_cart_{brand}_{model_index}")],
-        [InlineKeyboardButton(text="⭐ В избранное", callback_data=f"toggle_favorite_{brand}_{model_index}")]
+        [InlineKeyboardButton(text="🛒 Добавить в корзину", callback_data=f"add_to_cart_{brand}_{model_index}")]
     ]
     
     # Добавляем кнопки навигации только если товаров больше одного и включена навигация
@@ -483,13 +421,13 @@ async def send_product_card(message: types.Message, brand: str, model_index: int
 🕰️ <b>{model['brand']} {model['name']}</b>
 
 💰 <b>Цена:</b> {model['price']}
+🎨 <b>Цвет:</b> {model['color']}
 ⚙️ <b>Механизм:</b> {model['mechanism']}
 
 📋 <b>Характеристики:</b>
 🏷️ <b>Бренд:</b> {model['brand']}
 🔧 <b>Материал:</b> {model['material']}
 💧 <b>Водозащита:</b> {model['water_resistance']}
-🛡️ <b>Гарантия:</b> {model['warranty']}
 
 📝 <b>Описание:</b>
 {model['detailed_info']}
@@ -598,8 +536,7 @@ async def catalog_menu(message: types.Message):
     # Создаем reply keyboard с брендами
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="Rolex"), KeyboardButton(text="Patek Philippe")],
-            [KeyboardButton(text="Tissot")],
+            [KeyboardButton(text="Rolex")],
             [KeyboardButton(text="🔙 Назад на главную")]
         ],
         resize_keyboard=True,
@@ -619,7 +556,7 @@ async def cart_menu(message: types.Message):
     await show_cart(message)
 
 # Обработчики выбора брендов
-@dp.message(lambda message: message.text in ["Rolex", "Patek Philippe", "Tissot"])
+@dp.message(lambda message: message.text in ["Rolex"])
 async def handle_brand_selection(message: types.Message):
     """Обработка выбора бренда"""
     brand = message.text
@@ -652,6 +589,7 @@ async def handle_brand_selection(message: types.Message):
 🕰️ <b>{model['brand']} {model['name']}</b>
 
 💰 <b>Цена:</b> {model['price']}
+🎨 <b>Цвет:</b> {model['color']}
 ⚙️ <b>Механизм:</b> {model['mechanism']}
 📝 <b>Описание:</b> {model['description']}
 
@@ -741,8 +679,7 @@ async def handle_back_to_catalog(callback_query: CallbackQuery):
     # Создаем reply keyboard с брендами
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="Rolex"), KeyboardButton(text="Patek Philippe")],
-            [KeyboardButton(text="Tissot")],
+            [KeyboardButton(text="Rolex")],
             [KeyboardButton(text="🔙 Назад на главную")]
         ],
         resize_keyboard=True,
@@ -813,6 +750,7 @@ async def handle_product_navigation(callback_query: CallbackQuery):
 🕰️ <b>{model['brand']} {model['name']}</b>
 
 💰 <b>Цена:</b> {model['price']}
+🎨 <b>Цвет:</b> {model['color']}
 ⚙️ <b>Механизм:</b> {model['mechanism']}
 📝 <b>Описание:</b> {model['description']}
 
@@ -936,16 +874,21 @@ async def admin_command(message: types.Message):
 async def send_order_to_admin(user_id: int, order_data: dict):
     """Отправка заказа администратору"""
     try:
-        # Формируем сообщение для админа
-        admin_message = f"🛒 <b>Новый заказ!</b>\n\n"
+        # Логируем отправку заказа администратору
+        logging.info(f"Отправка заказа администратору от пользователя {user_id}")
+        
+        # Формируем детальное сообщение для админа
+        admin_message = f"🛒 <b>НОВЫЙ ЗАКАЗ ОТ КЛИЕНТА</b>\n\n"
+        admin_message += f"📅 <b>Дата заказа:</b> {order_data.get('order_date', 'Не указано')}\n"
         admin_message += f"👤 <b>Клиент:</b> {order_data.get('name', 'Не указано')}\n"
         admin_message += f"📞 <b>Телефон:</b> {order_data.get('phone', 'Не указано')}\n"
         admin_message += f"📍 <b>Локация:</b> {order_data.get('location', 'Не указано')}\n"
-        admin_message += f"🆔 <b>ID пользователя:</b> {user_id}\n\n"
+        admin_message += f"🆔 <b>ID пользователя:</b> {user_id}\n"
+        admin_message += f"👤 <b>Username:</b> @{order_data.get('username', 'Не указано')}\n\n"
         
         # Добавляем детальную информацию о товарах
-        admin_message += f"📦 <b>Товары в заказе:</b>\n"
         cart_items = order_data.get('cart_items', [])
+        admin_message += f"📦 <b>Товары в заказе ({len(cart_items)} шт.):</b>\n"
         total_price = 0
         
         for i, item in enumerate(cart_items, 1):
@@ -954,30 +897,33 @@ async def send_order_to_admin(user_id: int, order_data: dict):
             model_index = item['model_index']
             model = WATCH_MODELS_BY_BRAND[brand][model_index]
             
-            admin_message += f"{i}. <b>{item['brand']} {item['name']}</b>\n"
+            admin_message += f"\n{i}. <b>{item['brand']} {item['name']}</b>\n"
             admin_message += f"   💰 Цена: {item['price']}\n"
             admin_message += f"   📦 Количество: {item['quantity']}\n"
+            admin_message += f"   🎨 Цвет: {item['color']}\n"
             admin_message += f"   ⚙️ Механизм: {model['mechanism']}\n"
             admin_message += f"   🔧 Материал: {model['material']}\n"
             admin_message += f"   💧 Водозащита: {model['water_resistance']}\n"
-            admin_message += f"   🛡️ Гарантия: {model['warranty']}\n\n"
             
             # Рассчитываем общую стоимость
-            price_str = item['price'].replace("₽", "").replace(",", "").replace(" ", "")
+            price_str = item['price'].replace("₽", "").replace("uzs", "").replace(",", "").replace(" ", "").replace(".", "")
             try:
                 price = int(price_str)
                 total_price += price * item['quantity']
             except ValueError:
                 continue
         
-        admin_message += f"💳 <b>Общая стоимость: ₽{total_price:,}</b>\n"
+        admin_message += f"\n💳 <b>Общая стоимость: {total_price:,} uzs</b>\n"
+        admin_message += f"📊 <b>Статус:</b> Ожидает модерации\n\n"
+        admin_message += f"⚠️ <b>Требуется действие:</b> Принять или отклонить заказ"
         
         # Создаем клавиатуру для админа
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [
                 InlineKeyboardButton(text="✅ Принять заказ", callback_data=f"accept_order_{user_id}"),
                 InlineKeyboardButton(text="❌ Отклонить заказ", callback_data=f"reject_order_{user_id}")
-            ]
+            ],
+            [InlineKeyboardButton(text="📞 Связаться с клиентом", callback_data=f"contact_client_{user_id}")]
         ])
         
         # Отправляем сообщение с фото первого товара (если есть)
@@ -985,7 +931,7 @@ async def send_order_to_admin(user_id: int, order_data: dict):
             first_item = cart_items[0]
             brand = first_item['brand']
             model_index = first_item['model_index']
-            model = WATCH_MODELS_BY_BRAND[brand][model_index]
+            model = WATCH_MODELS_BY_BRAND[brand][model_index] 
             
             try:
                 await bot.send_photo(
@@ -995,6 +941,7 @@ async def send_order_to_admin(user_id: int, order_data: dict):
                     parse_mode="HTML",
                     reply_markup=keyboard
                 )
+                logging.info(f"Заказ с фото отправлен администратору от пользователя {user_id}")
             except Exception as photo_error:
                 logging.warning(f"Не удалось отправить фото: {photo_error}")
                 # Если фото не отправилось, отправляем только текст
@@ -1004,6 +951,7 @@ async def send_order_to_admin(user_id: int, order_data: dict):
                     parse_mode="HTML",
                     reply_markup=keyboard
                 )
+                logging.info(f"Заказ без фото отправлен администратору от пользователя {user_id}")
         else:
             # Если нет товаров в корзине, отправляем только текст
             await bot.send_message(
@@ -1012,11 +960,13 @@ async def send_order_to_admin(user_id: int, order_data: dict):
                 parse_mode="HTML",
                 reply_markup=keyboard
             )
+            logging.info(f"Заказ без товаров отправлен администратору от пользователя {user_id}")
 
-        logging.info(f"Заказ отправлен администратору: {order_data}")
+        logging.info(f"Заказ успешно отправлен администратору: {order_data}")
         
     except Exception as e:
         logging.error(f"Ошибка при отправке заказа администратору: {e}")
+        raise e  # Пробрасываем ошибку для обработки в вызывающем коде
 
 async def process_order_data(user_id: int, order_data: dict):
     """Обработка данных заказа"""
@@ -1160,17 +1110,16 @@ async def handle_location(message: types.Message, state: FSMContext):
                 admin_message += f"   ⚙️ Механизм: {model['mechanism']}\n"
                 admin_message += f"   🔧 Материал: {model['material']}\n"
                 admin_message += f"   💧 Водозащита: {model['water_resistance']}\n"
-                admin_message += f"   🛡️ Гарантия: {model['warranty']}\n\n"
                 
                 # Рассчитываем общую стоимость
-                price_str = item['price'].replace("₽", "").replace(",", "").replace(" ", "")
+                price_str = item['price'].replace("₽", "").replace("uzs", "").replace(",", "").replace(" ", "").replace(".", "")
                 try:
                     price = int(price_str)
                     total_price += price * item['quantity']
                 except ValueError:
                     continue
             
-            admin_message += f"💳 <b>Общая стоимость: ₽{total_price:,}</b>\n\n"
+            admin_message += f"💳 <b>Общая стоимость: {total_price:,} uzs</b>\n\n"
         else:
             admin_message += f"📦 <b>Корзина пуста</b>\n\n"
         
@@ -1246,24 +1195,38 @@ async def handle_accept_order(callback_query: CallbackQuery):
     user_id = int(callback_query.data.split("_")[2])
     
     try:
+        # Логируем принятие заказа
+        logging.info(f"Администратор принял заказ от пользователя {user_id}")
+        
         # Уведомляем клиента о принятии заказа
         await bot.send_message(
             user_id,
-            "✅ Заказ оформлен!\n\n"
-            "Мы свяжемся с вами в ближайшее время для уточнения деталей доставки."
+            "✅ <b>Ваш заказ принят!</b>\n\n"
+            "🎉 <b>Статус:</b> Заказ подтвержден администратором\n"
+            "📞 <b>Что дальше:</b>\n"
+            "• Мы свяжемся с вами в ближайшее время\n"
+            "• Уточним детали доставки\n"
+            "• Согласуем время доставки\n\n"
+            "Спасибо за покупку! 🛒",
+            parse_mode="HTML"
         )
         
         # Обновляем сообщение админа
         await callback_query.message.edit_text(
-            callback_query.message.text + "\n\n✅ Заказ оформлен админом",
+            callback_query.message.text + "\n\n✅ <b>ЗАКАЗ ПРИНЯТ АДМИНИСТРАТОРОМ</b>\n"
+            f"📅 Время принятия: {callback_query.message.date}\n"
+            f"👤 Принял: {callback_query.from_user.first_name}",
+            parse_mode="HTML",
             reply_markup=None
         )
         
-        await callback_query.answer("Заказ оформлен!")
+        await callback_query.answer("✅ Заказ принят и клиент уведомлен!")
+        
+        logging.info(f"Заказ от пользователя {user_id} успешно принят администратором")
         
     except Exception as e:
         logging.error(f"Ошибка при принятии заказа: {e}")
-        await callback_query.answer("Ошибка при принятии заказа")
+        await callback_query.answer("❌ Ошибка при принятии заказа")
 
 @dp.callback_query(lambda c: c.data.startswith("reject_order_"))
 async def handle_reject_order(callback_query: CallbackQuery):
@@ -1275,6 +1238,9 @@ async def handle_reject_order(callback_query: CallbackQuery):
     user_id = int(callback_query.data.split("_")[2])
     
     try:
+        # Логируем отклонение заказа
+        logging.info(f"Администратор отклонил заказ от пользователя {user_id}")
+        
         # Сбрасываем состояние пользователя
         from aiogram.fsm.context import FSMContext
         from aiogram.fsm.storage.base import StorageKey
@@ -1286,21 +1252,78 @@ async def handle_reject_order(callback_query: CallbackQuery):
         # Уведомляем клиента об отклонении заказа
         await bot.send_message(
             user_id,
-            "❌ К сожалению, заказ не может быть оформлен.\n\n"
-            "Попробуйте позже или свяжитесь с нами для уточнения деталей."
+            "❌ <b>Заказ отклонен</b>\n\n"
+            "😔 К сожалению, ваш заказ не может быть оформлен в данный момент.\n\n"
+            "📞 <b>Что можно сделать:</b>\n"
+            "• Свяжитесь с нами для уточнения деталей\n"
+            "• Попробуйте оформить заказ позже\n"
+            "• Выберите другие товары из каталога\n\n"
+            "Извините за неудобства! 🙏",
+            parse_mode="HTML"
         )
         
         # Обновляем сообщение админа
         await callback_query.message.edit_text(
-            callback_query.message.text + "\n\n❌ Заказ отклонен админом",
+            callback_query.message.text + "\n\n❌ <b>ЗАКАЗ ОТКЛОНЕН АДМИНИСТРАТОРОМ</b>\n"
+            f"📅 Время отклонения: {callback_query.message.date}\n"
+            f"👤 Отклонил: {callback_query.from_user.first_name}",
+            parse_mode="HTML",
             reply_markup=None
         )
         
-        await callback_query.answer("Заказ отклонен!")
+        await callback_query.answer("❌ Заказ отклонен и клиент уведомлен!")
+        
+        logging.info(f"Заказ от пользователя {user_id} отклонен администратором")
         
     except Exception as e:
         logging.error(f"Ошибка при отклонении заказа: {e}")
-        await callback_query.answer("Ошибка при отклонении заказа")
+        await callback_query.answer("❌ Ошибка при отклонении заказа")
+
+@dp.callback_query(lambda c: c.data.startswith("contact_client_"))
+async def handle_contact_client(callback_query: CallbackQuery):
+    """Обработка кнопки 'Связаться с клиентом'"""
+    if callback_query.from_user.id != ADMIN_CHAT_ID:
+        await callback_query.answer("У вас нет прав для этого действия")
+        return
+    
+    user_id = int(callback_query.data.split("_")[2])
+    
+    try:
+        # Логируем попытку связаться с клиентом
+        logging.info(f"Администратор запросил связь с клиентом {user_id}")
+        
+        # Отправляем администратору информацию для связи
+        contact_info = f"📞 <b>Связь с клиентом</b>\n\n"
+        contact_info += f"🆔 <b>ID пользователя:</b> {user_id}\n"
+        contact_info += f"👤 <b>Username:</b> @{callback_query.message.from_user.username if callback_query.message.from_user.username else 'Не указан'}\n"
+        contact_info += f"📱 <b>Для связи:</b> @{callback_query.message.from_user.username if callback_query.message.from_user.username else 'Используйте ID'}\n\n"
+        contact_info += f"💬 <b>Рекомендации:</b>\n"
+        contact_info += f"• Напишите клиенту напрямую\n"
+        contact_info += f"• Уточните детали заказа\n"
+        contact_info += f"• Согласуйте время доставки\n\n"
+        contact_info += f"⚠️ <b>Важно:</b> После связи обновите статус заказа!"
+        
+        # Создаем клавиатуру для обновления статуса
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="✅ Заказ подтвержден", callback_data=f"accept_order_{user_id}"),
+                InlineKeyboardButton(text="❌ Заказ отклонен", callback_data=f"reject_order_{user_id}")
+            ]
+        ])
+        
+        await callback_query.message.answer(
+            contact_info,
+            parse_mode="HTML",
+            reply_markup=keyboard
+        )
+        
+        await callback_query.answer("📞 Информация для связи отправлена!")
+        
+        logging.info(f"Информация для связи с клиентом {user_id} отправлена администратору")
+        
+    except Exception as e:
+        logging.error(f"Ошибка при получении информации для связи: {e}")
+        await callback_query.answer("❌ Ошибка при получении информации для связи")
 
 
 @dp.callback_query(lambda c: c.data.startswith("edit_item_"))
@@ -1487,7 +1510,7 @@ async def handle_checkout_cart(callback_query: CallbackQuery, state: FSMContext)
     
     order_text = "💳 <b>Оформление заказа</b>\n\n"
     order_text += f"📦 Товаров в корзине: {len(cart['items'])}\n"
-    order_text += f"💰 К оплате: ₽{totals['total']:,}\n\n"
+    order_text += f"💰 К оплате: {totals['total']:,} uzs\n\n"
     order_text += "Для оформления заказа введите ваше имя:"
     
     await callback_query.message.answer(
@@ -1562,11 +1585,156 @@ async def process_location(message: types.Message, state: FSMContext):
     # Получаем все данные заказа
     order_data = await state.get_data()
     
-    # Отправляем заказ администратору
-    await send_order_to_admin(message.from_user.id, order_data)
+    # Показываем сводку заказа и запрашиваем подтверждение
+    await show_order_confirmation(message, state, order_data)
+
+async def show_order_confirmation(message: types.Message, state: FSMContext, order_data: dict):
+    """Показать сводку заказа и запросить подтверждение"""
+    # Устанавливаем состояние ожидания подтверждения
+    await state.set_state(OrderStates.waiting_for_confirmation)
     
-    # Очищаем корзину
-    clear_cart(message.from_user.id)
+    # Получаем данные корзины
+    cart_items = order_data.get('cart_items', [])
+    
+    # Формируем сводку заказа
+    confirmation_text = "🛒 <b>ПОДТВЕРЖДЕНИЕ ЗАКАЗА</b>\n\n"
+    confirmation_text += "📋 <b>Ваши данные:</b>\n"
+    confirmation_text += f"👤 <b>Имя:</b> {order_data.get('name', 'Не указано')}\n"
+    confirmation_text += f"📞 <b>Телефон:</b> {order_data.get('phone', 'Не указано')}\n"
+    confirmation_text += f"📍 <b>Локация:</b> {order_data.get('location', 'Не указано')}\n\n"
+    
+    confirmation_text += "⌚ <b>Товары в заказе:</b>\n"
+    total_price = 0
+    
+    for i, item in enumerate(cart_items, 1):
+        # Получаем полную информацию о товаре
+        brand = item['brand']
+        model_index = item['model_index']
+        model = WATCH_MODELS_BY_BRAND[brand][model_index]
+        
+        confirmation_text += f"{i}. <b>{item['brand']} {item['name']}</b>\n"
+        confirmation_text += f"   💰 Цена: {item['price']}\n"
+        confirmation_text += f"   📦 Количество: {item['quantity']}\n"
+        confirmation_text += f"   🎨 Цвет: {item['color']}\n"
+        confirmation_text += f"   ⚙️ Механизм: {model['mechanism']}\n\n"
+        
+        # Рассчитываем общую стоимость
+        price_str = item['price'].replace("₽", "").replace("uzs", "").replace(",", "").replace(" ", "").replace(".", "")
+        try:
+            price = int(price_str)
+            total_price += price * item['quantity']
+        except ValueError:
+            continue
+    
+    confirmation_text += f"💳 <b>Общая стоимость: {total_price:,} uzs</b>\n\n"
+    confirmation_text += "⚠️ <b>ВАЖНО:</b> После подтверждения заказ будет отправлен администратору для модерации.\n"
+    confirmation_text += "❓ <b>Вы действительно хотите оформить заказ на часы?</b>\n\n"
+    confirmation_text += "Нажмите 'Да, оформить заказ' для подтверждения или 'Отменить' для отмены."
+    
+    # Создаем клавиатуру с кнопками подтверждения
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="✅ Да, оформить заказ", callback_data="confirm_order"),
+            InlineKeyboardButton(text="❌ Отменить", callback_data="cancel_order")
+        ]
+    ])
+    
+    await message.answer(
+        confirmation_text,
+        parse_mode="HTML",
+        reply_markup=keyboard
+    )
+
+# Обработчики подтверждения заказа
+@dp.callback_query(lambda c: c.data == "confirm_order")
+async def handle_confirm_order(callback_query: CallbackQuery, state: FSMContext):
+    """Обработка подтверждения заказа"""
+    user_id = callback_query.from_user.id
+    
+    try:
+        # Логируем начало процесса подтверждения
+        logging.info(f"Пользователь {user_id} подтвердил заказ")
+        
+        # Получаем данные заказа
+        order_data = await state.get_data()
+        cart_items = order_data.get('cart_items', [])
+        
+        # Добавляем дату заказа
+        from datetime import datetime
+        order_data['order_date'] = datetime.now().strftime("%d.%m.%Y %H:%M")
+        
+        # Дополнительная проверка данных заказа
+        if not cart_items:
+            await callback_query.answer("❌ Корзина пуста! Заказ не может быть оформлен.")
+            logging.warning(f"Попытка оформить пустой заказ от пользователя {user_id}")
+            return
+        
+        # Проверяем наличие обязательных данных
+        if not order_data.get('name') or not order_data.get('phone'):
+            await callback_query.answer("❌ Неполные данные! Пожалуйста, заполните все поля.")
+            logging.warning(f"Неполные данные заказа от пользователя {user_id}: {order_data}")
+            return
+        
+        # Логируем детали заказа
+        logging.info(f"Детали заказа от пользователя {user_id}: {order_data}")
+        
+        await callback_query.answer("✅ Заказ подтвержден! Отправляем администратору...")
+        
+        # Отправляем заказ администратору
+        await send_order_to_admin(user_id, order_data)
+        
+        # Очищаем корзину
+        clear_cart(user_id)
+        
+        # Сбрасываем состояние
+        await state.clear()
+        
+        # Возвращаем в главное меню
+        keyboard = ReplyKeyboardMarkup(
+            keyboard=[
+                [KeyboardButton(text="⌚ Каталог"), KeyboardButton(text="🛒 Корзина")]
+            ],
+            resize_keyboard=True,
+            persistent=True
+        )
+        
+        await callback_query.message.answer(
+            "✅ <b>Заказ успешно отправлен администратору!</b>\n\n"
+            "📋 <b>Что дальше:</b>\n"
+            "• Администратор рассмотрит ваш заказ\n"
+            "• Вы получите уведомление о статусе заказа\n"
+            "• Мы свяжемся с вами для уточнения деталей доставки\n\n"
+            "Спасибо за покупку! 🛒",
+            parse_mode="HTML",
+            reply_markup=keyboard
+        )
+        
+        logging.info(f"Заказ от пользователя {user_id} успешно отправлен администратору")
+        
+    except Exception as e:
+        logging.error(f"Ошибка при подтверждении заказа пользователя {user_id}: {e}")
+        await callback_query.answer("❌ Произошла ошибка при оформлении заказа. Попробуйте позже.")
+        
+        # В случае ошибки возвращаем пользователя в главное меню
+        keyboard = ReplyKeyboardMarkup(
+            keyboard=[
+                [KeyboardButton(text="⌚ Каталог"), KeyboardButton(text="🛒 Корзина")]
+            ],
+            resize_keyboard=True,
+            persistent=True
+        )
+        
+        await callback_query.message.answer(
+            "❌ <b>Произошла ошибка при оформлении заказа</b>\n\n"
+            "Пожалуйста, попробуйте позже или свяжитесь с нами для помощи.",
+            parse_mode="HTML",
+            reply_markup=keyboard
+        )
+
+@dp.callback_query(lambda c: c.data == "cancel_order")
+async def handle_cancel_order(callback_query: CallbackQuery, state: FSMContext):
+    """Обработка отмены заказа"""
+    await callback_query.answer("❌ Заказ отменен")
     
     # Сбрасываем состояние
     await state.clear()
@@ -1580,51 +1748,12 @@ async def process_location(message: types.Message, state: FSMContext):
         persistent=True
     )
     
-    await message.answer(
-        "✅ <b>Заказ отправлен администратору!</b>\n\n"
-        "Мы свяжемся с вами в ближайшее время для подтверждения заказа.",
+    await callback_query.message.answer(
+        "❌ <b>Заказ отменен</b>\n\n"
+        "Вы можете продолжить покупки в каталоге.",
         parse_mode="HTML",
         reply_markup=keyboard
     )
-
-# Обработчик геолокации
-@dp.message(lambda message: message.location is not None, OrderStates.waiting_for_location)
-async def handle_location_message(message: types.Message, state: FSMContext):
-    """Обработка отправленной геолокации"""
-    latitude = message.location.latitude
-    longitude = message.location.longitude
-    location_text = f"Широта: {latitude}, Долгота: {longitude}"
-    
-    await state.update_data(location=location_text)
-    
-    # Получаем все данные заказа
-    order_data = await state.get_data()
-    
-    # Отправляем заказ администратору
-    await send_order_to_admin(message.from_user.id, order_data)
-    
-    # Очищаем корзину
-    clear_cart(message.from_user.id)
-    
-    # Сбрасываем состояние
-    await state.clear()
-    
-    # Возвращаем в главное меню
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="📚 Каталог"), KeyboardButton(text="🛒 Корзина")]
-        ],
-        resize_keyboard=True,
-        persistent=True
-    )
-    
-    await message.answer(
-        "✅ <b>Заказ отправлен администратору!</b>\n\n"
-        "Мы свяжемся с вами в ближайшее время для подтверждения заказа.",
-        parse_mode="HTML",
-        reply_markup=keyboard
-    )
-
 
 async def main():
     """Главная функция запуска бота"""

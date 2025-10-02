@@ -1,389 +1,422 @@
 <!DOCTYPE html>
 <html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Заказ часов</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--tg-theme-bg-color, #ffffff);
-            color: var(--tg-theme-text-color, #000000);
-            padding: 20px;
-            min-height: 100vh;
-        }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        background: var(--tg-theme-bg-color, #ffffff);
+        color: var(--tg-theme-text-color, #000000);
+        padding: 20px;
+        min-height: 100vh;
+      }
 
-        .container {
-            max-width: 400px;
-            margin: 0 auto;
-        }
+      .container {
+        max-width: 400px;
+        margin: 0 auto;
+      }
 
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
+      .header {
+        text-align: center;
+        margin-bottom: 30px;
+      }
 
-        .header h1 {
-            font-size: 24px;
-            margin-bottom: 10px;
-        }
+      .header h1 {
+        font-size: 24px;
+        margin-bottom: 10px;
+      }
 
-        .form-group {
-            margin-bottom: 20px;
-        }
+      .form-group {
+        margin-bottom: 20px;
+      }
 
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-            color: var(--tg-theme-text-color, #000000);
-        }
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: var(--tg-theme-text-color, #000000);
+      }
 
-        input, select, textarea {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid var(--tg-theme-hint-color, #e0e0e0);
-            border-radius: 8px;
-            font-size: 16px;
-            background: var(--tg-theme-bg-color, #ffffff);
-            color: var(--tg-theme-text-color, #000000);
-            transition: border-color 0.3s;
-        }
+      input,
+      select,
+      textarea {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid var(--tg-theme-hint-color, #e0e0e0);
+        border-radius: 8px;
+        font-size: 16px;
+        background: var(--tg-theme-bg-color, #ffffff);
+        color: var(--tg-theme-text-color, #000000);
+        transition: border-color 0.3s;
+      }
 
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-color: var(--tg-theme-button-color, #007aff);
-        }
+      input:focus,
+      select:focus,
+      textarea:focus {
+        outline: none;
+        border-color: var(--tg-theme-button-color, #007aff);
+      }
 
-        textarea {
-            resize: vertical;
-            min-height: 80px;
-        }
+      textarea {
+        resize: vertical;
+        min-height: 80px;
+      }
 
-        .location-btn {
-            width: 100%;
-            padding: 15px;
-            background: var(--tg-theme-button-color, #007aff);
-            color: var(--tg-theme-button-text-color, #ffffff);
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: opacity 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
+      .location-btn {
+        width: 100%;
+        padding: 15px;
+        background: var(--tg-theme-button-color, #007aff);
+        color: var(--tg-theme-button-text-color, #ffffff);
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
 
-        .location-btn:hover {
-            opacity: 0.9;
-        }
+      .location-btn:hover {
+        opacity: 0.9;
+      }
 
-        .location-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
+      .location-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
 
-        .location-info {
-            margin-top: 10px;
-            padding: 10px;
-            background: var(--tg-theme-secondary-bg-color, #f0f0f0);
-            border-radius: 8px;
-            font-size: 14px;
-            color: var(--tg-theme-hint-color, #666666);
-        }
+      .location-info {
+        margin-top: 10px;
+        padding: 10px;
+        background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+        border-radius: 8px;
+        font-size: 14px;
+        color: var(--tg-theme-hint-color, #666666);
+      }
 
-        .submit-btn {
-            width: 100%;
-            padding: 15px;
-            background: var(--tg-theme-button-color, #007aff);
-            color: var(--tg-theme-button-text-color, #ffffff);
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: opacity 0.3s;
-        }
+      .submit-btn {
+        width: 100%;
+        padding: 15px;
+        background: var(--tg-theme-button-color, #007aff);
+        color: var(--tg-theme-button-text-color, #ffffff);
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.3s;
+      }
 
-        .submit-btn:hover {
-            opacity: 0.9;
-        }
+      .submit-btn:hover {
+        opacity: 0.9;
+      }
 
-        .submit-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
+      .submit-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
 
-        .loading {
-            display: none;
-            text-align: center;
-            margin-top: 20px;
-        }
+      .loading {
+        display: none;
+        text-align: center;
+        margin-top: 20px;
+      }
 
-        .error {
-            color: #ff3b30;
-            font-size: 14px;
-            margin-top: 5px;
-        }
+      .error {
+        color: #ff3b30;
+        font-size: 14px;
+        margin-top: 5px;
+      }
 
-        .success {
-            text-align: center;
-            padding: 40px 20px;
-        }
+      .success {
+        text-align: center;
+        padding: 40px 20px;
+      }
 
-        .success h2 {
-            color: #34c759;
-            margin-bottom: 15px;
-        }
+      .success h2 {
+        color: #34c759;
+        margin-bottom: 15px;
+      }
 
-        .watch-models {
-            display: grid;
-            gap: 10px;
-        }
+      .watch-models {
+        display: grid;
+        gap: 10px;
+      }
 
-        .model-option {
-            padding: 12px;
-            border: 2px solid var(--tg-theme-hint-color, #e0e0e0);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-align: center;
-        }
+      .model-option {
+        padding: 12px;
+        border: 2px solid var(--tg-theme-hint-color, #e0e0e0);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-align: center;
+      }
 
-        .model-option.selected {
-            border-color: var(--tg-theme-button-color, #007aff);
-            background: var(--tg-theme-button-color, #007aff);
-            color: var(--tg-theme-button-text-color, #ffffff);
-        }
+      .model-option.selected {
+        border-color: var(--tg-theme-button-color, #007aff);
+        background: var(--tg-theme-button-color, #007aff);
+        color: var(--tg-theme-button-text-color, #ffffff);
+      }
 
-        .payment-methods {
-            display: grid;
-            gap: 10px;
-        }
+      .payment-methods {
+        display: grid;
+        gap: 10px;
+      }
 
-        .payment-option {
-            padding: 12px;
-            border: 2px solid var(--tg-theme-hint-color, #e0e0e0);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-align: center;
-        }
+      .payment-option {
+        padding: 12px;
+        border: 2px solid var(--tg-theme-hint-color, #e0e0e0);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-align: center;
+      }
 
-        .payment-option.selected {
-            border-color: var(--tg-theme-button-color, #007aff);
-            background: var(--tg-theme-button-color, #007aff);
-            color: var(--tg-theme-button-text-color, #ffffff);
-        }
+      .payment-option.selected {
+        border-color: var(--tg-theme-button-color, #007aff);
+        background: var(--tg-theme-button-color, #007aff);
+        color: var(--tg-theme-button-text-color, #ffffff);
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <div class="header">
-            <h1>⌚ Заказ часов</h1>
-            <p>Заполните форму для оформления заказа</p>
+      <div class="header">
+        <h1>⌚ Заказ часов</h1>
+        <p>Заполните форму для оформления заказа</p>
+      </div>
+
+      <form id="orderForm">
+        <div class="form-group">
+          <label for="name">Имя *</label>
+          <input type="text" id="name" name="name" required />
         </div>
 
-        <form id="orderForm">
-            <div class="form-group">
-                <label for="name">Имя *</label>
-                <input type="text" id="name" name="name" required>
-            </div>
-
-            <div class="form-group">
-                <label for="phone">Телефон *</label>
-                <input type="tel" id="phone" name="phone" required>
-            </div>
-
-            <div class="form-group">
-                <label>Геолокация *</label>
-                <button type="button" class="location-btn" id="locationBtn">
-                    📍 Получить геолокацию
-                </button>
-                <div class="location-info" id="locationInfo" style="display: none;">
-                    ✅ Геолокация получена
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label>Модель часов *</label>
-                <div class="watch-models" id="watchModels">
-                    <div class="model-option" data-model="Rolex Submariner">Rolex Submariner</div>
-                    <div class="model-option" data-model="Omega Seamaster">Omega Seamaster</div>
-                    <div class="model-option" data-model="Tag Heuer Carrera">Tag Heuer Carrera</div>
-                    <div class="model-option" data-model="Breitling Navitimer">Breitling Navitimer</div>
-                    <div class="model-option" data-model="Patek Philippe Calatrava">Patek Philippe Calatrava</div>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label>Способ оплаты *</label>
-                <div class="payment-methods" id="paymentMethods">
-                    <div class="payment-option" data-method="Наличные">Наличные</div>
-                    <div class="payment-option" data-method="Банковская карта">Банковская карта</div>
-                    <div class="payment-option" data-method="Перевод на карту">Перевод на карту</div>
-                    <div class="payment-option" data-method="Криптовалюта">Криптовалюта</div>
-                </div>
-            </div>
-
-            <button type="submit" class="submit-btn" id="submitBtn">
-                Отправить заказ
-            </button>
-        </form>
-
-        <div class="loading" id="loading">
-            <p>Отправка заказа...</p>
+        <div class="form-group">
+          <label for="phone">Телефон *</label>
+          <input type="tel" id="phone" name="phone" required />
         </div>
 
-        <div class="success" id="success" style="display: none;">
-            <h2>✅ Заказ отправлен!</h2>
-            <p>Спасибо за ваш заказ. Мы свяжемся с вами в ближайшее время.</p>
+        <div class="form-group">
+          <label>Геолокация *</label>
+          <button type="button" class="location-btn" id="locationBtn">
+            📍 Получить геолокацию
+          </button>
+          <div class="location-info" id="locationInfo" style="display: none">
+            ✅ Геолокация получена
+          </div>
         </div>
+
+        <div class="form-group">
+          <label>Модель часов *</label>
+          <div class="watch-models" id="watchModels">
+            <div class="model-option" data-model="Rolex Submariner">
+              Rolex Submariner
+            </div>
+            <div class="model-option" data-model="Omega Seamaster">
+              Omega Seamaster
+            </div>
+            <div class="model-option" data-model="Tag Heuer Carrera">
+              Tag Heuer Carrera
+            </div>
+            <div class="model-option" data-model="Breitling Navitimer">
+              Breitling Navitimer
+            </div>
+            <div class="model-option" data-model="Patek Philippe Calatrava">
+              Patek Philippe Calatrava
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Способ оплаты *</label>
+          <div class="payment-methods" id="paymentMethods">
+            <div class="payment-option" data-method="Наличные">Наличные</div>
+            <div class="payment-option" data-method="Банковская карта">
+              Банковская карта
+            </div>
+            <div class="payment-option" data-method="Перевод на карту">
+              Перевод на карту
+            </div>
+            <div class="payment-option" data-method="Криптовалюта">
+              Криптовалюта
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="submit-btn" id="submitBtn">
+          Отправить заказ
+        </button>
+      </form>
+
+      <div class="loading" id="loading">
+        <p>Отправка заказа...</p>
+      </div>
+
+      <div class="success" id="success" style="display: none">
+        <h2>✅ Заказ отправлен!</h2>
+        <p>Спасибо за ваш заказ. Мы свяжемся с вами в ближайшее время.</p>
+      </div>
     </div>
 
     <script>
-        // Инициализация Telegram Web App
-        const tg = window.Telegram.WebApp;
-        tg.ready();
-        tg.expand();
+      // Инициализация Telegram Web App
+      const tg = window.Telegram.WebApp;
+      tg.ready();
+      tg.expand();
 
-        // Получение данных пользователя
-        const user = tg.initDataUnsafe.user;
-        if (user) {
-            document.getElementById('name').value = user.first_name || '';
-            if (user.last_name) {
-                document.getElementById('name').value += ' ' + user.last_name;
-            }
+      // Получение данных пользователя
+      const user = tg.initDataUnsafe.user;
+      if (user) {
+        document.getElementById("name").value = user.first_name || "";
+        if (user.last_name) {
+          document.getElementById("name").value += " " + user.last_name;
         }
+      }
 
-        // Переменные для хранения данных
-        let selectedModel = '';
-        let selectedPayment = '';
-        let userLocation = null;
+      // Переменные для хранения данных
+      let selectedModel = "";
+      let selectedPayment = "";
+      let userLocation = null;
 
-        // Обработка получения геолокации
-        document.getElementById('locationBtn').addEventListener('click', () => {
-            if (navigator.geolocation) {
-                document.getElementById('locationBtn').disabled = true;
-                document.getElementById('locationBtn').textContent = '⏳ Получение геолокации...';
-                
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        userLocation = {
-                            latitude: position.coords.latitude,
-                            longitude: position.coords.longitude
-                        };
-                        
-                        document.getElementById('locationBtn').textContent = '✅ Геолокация получена';
-                        document.getElementById('locationInfo').style.display = 'block';
-                        document.getElementById('locationBtn').disabled = false;
-                    },
-                    (error) => {
-                        console.error('Ошибка получения геолокации:', error);
-                        alert('Не удалось получить геолокацию. Разрешите доступ к местоположению и попробуйте снова.');
-                        
-                        document.getElementById('locationBtn').textContent = '📍 Получить геолокацию';
-                        document.getElementById('locationBtn').disabled = false;
-                    },
-                    {
-                        enableHighAccuracy: true,
-                        timeout: 10000,
-                        maximumAge: 60000
-                    }
-                );
-            } else {
-                alert('Геолокация не поддерживается вашим браузером.');
+      // Обработка получения геолокации
+      document.getElementById("locationBtn").addEventListener("click", () => {
+        if (navigator.geolocation) {
+          document.getElementById("locationBtn").disabled = true;
+          document.getElementById("locationBtn").textContent =
+            "⏳ Получение геолокации...";
+
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              userLocation = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+              };
+
+              document.getElementById("locationBtn").textContent =
+                "✅ Геолокация получена";
+              document.getElementById("locationInfo").style.display = "block";
+              document.getElementById("locationBtn").disabled = false;
+            },
+            (error) => {
+              console.error("Ошибка получения геолокации:", error);
+              alert(
+                "Не удалось получить геолокацию. Разрешите доступ к местоположению и попробуйте снова."
+              );
+
+              document.getElementById("locationBtn").textContent =
+                "📍 Получить геолокацию";
+              document.getElementById("locationBtn").disabled = false;
+            },
+            {
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 60000,
             }
+          );
+        } else {
+          alert("Геолокация не поддерживается вашим браузером.");
+        }
+      });
+
+      // Обработка выбора модели часов
+      const watchModels = document.querySelectorAll(".model-option");
+
+      watchModels.forEach((option) => {
+        option.addEventListener("click", () => {
+          watchModels.forEach((opt) => opt.classList.remove("selected"));
+          option.classList.add("selected");
+          selectedModel = option.dataset.model;
+        });
+      });
+
+      // Обработка выбора способа оплаты
+      const paymentMethods = document.querySelectorAll(".payment-option");
+
+      paymentMethods.forEach((option) => {
+        option.addEventListener("click", () => {
+          paymentMethods.forEach((opt) => opt.classList.remove("selected"));
+          option.classList.add("selected");
+          selectedPayment = option.dataset.method;
+        });
+      });
+
+      // Обработка отправки формы
+      document
+        .getElementById("orderForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          // Проверка заполнения обязательных полей
+          const name = document.getElementById("name").value.trim();
+          const phone = document.getElementById("phone").value.trim();
+
+          if (
+            !name ||
+            !phone ||
+            !userLocation ||
+            !selectedModel ||
+            !selectedPayment
+          ) {
+            alert("Пожалуйста, заполните все обязательные поля");
+            return;
+          }
+
+          // Показываем загрузку
+          document.getElementById("submitBtn").disabled = true;
+          document.getElementById("loading").style.display = "block";
+
+          // Подготавливаем данные заказа
+          const orderData = {
+            name: name,
+            phone: phone,
+            location: userLocation,
+            watch_model: selectedModel,
+            payment_method: selectedPayment,
+            user_id: user ? user.id : null,
+            username: user ? user.username : null,
+            timestamp: new Date().toISOString(),
+          };
+
+          try {
+            // Отправляем данные через Telegram Web App
+            tg.sendData(JSON.stringify(orderData));
+
+            // Показываем успешное сообщение
+            document.getElementById("orderForm").style.display = "none";
+            document.getElementById("loading").style.display = "none";
+            document.getElementById("success").style.display = "block";
+
+            // Закрываем Web App через 2 секунды
+            setTimeout(() => {
+              tg.close();
+            }, 2000);
+          } catch (error) {
+            console.error("Ошибка при отправке заказа:", error);
+            alert("Произошла ошибка при отправке заказа. Попробуйте еще раз.");
+
+            document.getElementById("submitBtn").disabled = false;
+            document.getElementById("loading").style.display = "none";
+          }
         });
 
-        // Обработка выбора модели часов
-        const watchModels = document.querySelectorAll('.model-option');
-
-        watchModels.forEach(option => {
-            option.addEventListener('click', () => {
-                watchModels.forEach(opt => opt.classList.remove('selected'));
-                option.classList.add('selected');
-                selectedModel = option.dataset.model;
-            });
-        });
-
-        // Обработка выбора способа оплаты
-        const paymentMethods = document.querySelectorAll('.payment-option');
-
-        paymentMethods.forEach(option => {
-            option.addEventListener('click', () => {
-                paymentMethods.forEach(opt => opt.classList.remove('selected'));
-                option.classList.add('selected');
-                selectedPayment = option.dataset.method;
-            });
-        });
-
-        // Обработка отправки формы
-        document.getElementById('orderForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            // Проверка заполнения обязательных полей
-            const name = document.getElementById('name').value.trim();
-            const phone = document.getElementById('phone').value.trim();
-
-            if (!name || !phone || !userLocation || !selectedModel || !selectedPayment) {
-                alert('Пожалуйста, заполните все обязательные поля');
-                return;
-            }
-
-            // Показываем загрузку
-            document.getElementById('submitBtn').disabled = true;
-            document.getElementById('loading').style.display = 'block';
-
-            // Подготавливаем данные заказа
-            const orderData = {
-                name: name,
-                phone: phone,
-                location: userLocation,
-                watch_model: selectedModel,
-                payment_method: selectedPayment,
-                user_id: user ? user.id : null,
-                username: user ? user.username : null,
-                timestamp: new Date().toISOString()
-            };
-
-            try {
-                // Отправляем данные через Telegram Web App
-                tg.sendData(JSON.stringify(orderData));
-                
-                // Показываем успешное сообщение
-                document.getElementById('orderForm').style.display = 'none';
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('success').style.display = 'block';
-
-                // Закрываем Web App через 2 секунды
-                setTimeout(() => {
-                    tg.close();
-                }, 2000);
-
-            } catch (error) {
-                console.error('Ошибка при отправке заказа:', error);
-                alert('Произошла ошибка при отправке заказа. Попробуйте еще раз.');
-                
-                document.getElementById('submitBtn').disabled = false;
-                document.getElementById('loading').style.display = 'none';
-            }
-        });
-
-        // Настройка кнопки "Назад" в Telegram
-        tg.BackButton.onClick(() => {
-            tg.close();
-        });
+      // Настройка кнопки "Назад" в Telegram
+      tg.BackButton.onClick(() => {
+        tg.close();
+      });
     </script>
-</body>
+  </body>
 </html>

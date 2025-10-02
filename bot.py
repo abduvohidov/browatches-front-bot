@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
@@ -30,27 +31,45 @@ class OrderStates(StatesGroup):
 
 
 # Бренды часов
-WATCH_BRANDS = ["Rolex", "Patek Philippe", "Tissot", "Omega", "IBSO", "Gusala"]
+WATCH_BRANDS = ["Rolex", "Patek Philippe", "Tissot"]
 
 # Модели часов по брендам с детальной информацией
 WATCH_MODELS_BY_BRAND = {
     "Rolex": [
         {
-            "name": "Submariner",
-            "price": "₽2,500,000",
-            "mechanism": "Автоматический механизм Rolex 3235",
-            "description": "Легендарные дайверские часы с водонепроницаемостью до 300м",
-            "photo": "https://images.unsplash.com/photo-1523170335258-f5b6c6e8e4c4?w=500&h=500&fit=crop",
-            "detailed_info": "Rolex Submariner - это культовые дайверские часы, которые стали символом надежности и престижа. Корпус из нержавеющей стали 904L, сапфировое стекло, водонепроницаемость до 300 метров. Механизм Rolex 3235 с запасом хода 70 часов.",
+            "name": "GMT Master II",
+            "price": "₽3,200,000",
+            "mechanism": "Автоматический механизм Rolex 3285",
+            "description": "Профессиональные часы для путешественников с функцией GMT",
+            "photo": "https://images.unsplash.com/photo-1594534475808-b18fc33b045e?w=500&h=500&fit=crop",
+            "detailed_info": "Rolex GMT Master II - это профессиональные часы для путешественников, позволяющие отслеживать время в двух часовых поясах одновременно. Корпус из нержавеющей стали 904L с керамическим безелем, механизм Rolex 3285 с запасом хода 70 часов.",
             "photos": [
+                "https://images.unsplash.com/photo-1594534475808-b18fc33b045e?w=500&h=500&fit=crop",
                 "https://images.unsplash.com/photo-1523170335258-f5b6c6e8e4c4?w=500&h=500&fit=crop",
-                "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&h=500&fit=crop",
-                "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=500&h=500&fit=crop"
+                "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&h=500&fit=crop"
             ],
             "brand": "Rolex",
-            "category": "Спортивные",
+            "category": "Профессиональные",
             "material": "Нержавеющая сталь 904L",
-            "water_resistance": "300 метров",
+            "water_resistance": "100 метров",
+            "warranty": "5 лет официальной гарантии"
+        },
+        {
+            "name": "Datejust",
+            "price": "₽1,800,000",
+            "mechanism": "Автоматический механизм Rolex 3235",
+            "description": "Классические элегантные часы с отображением даты",
+            "photo": "https://images.unsplash.com/photo-1542496658-e33a6d0d50f6?w=500&h=500&fit=crop",
+            "detailed_info": "Rolex Datejust - это классические элегантные часы, сочетающие в себе стиль и функциональность. Первая в мире автоматическая модель с отображением даты. Корпус из нержавеющей стали 904L, сапфировое стекло, механизм Rolex 3235 с запасом хода 70 часов.",
+            "photos": [
+                "https://images.unsplash.com/photo-1542496658-e33a6d0d50f6?w=500&h=500&fit=crop",
+                "https://images.unsplash.com/photo-1523170335258-f5b6c6e8e4c4?w=500&h=500&fit=crop",
+                "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&h=500&fit=crop"
+            ],
+            "brand": "Rolex",
+            "category": "Классические",
+            "material": "Нержавеющая сталь 904L",
+            "water_resistance": "100 метров",
             "warranty": "5 лет официальной гарантии"
         }
     ],
@@ -97,15 +116,8 @@ WATCH_MODELS_BY_BRAND = {
 }
 
 # Способы оплаты
-PAYMENT_METHODS = ["Перевод на карту"]
+PAYMENT_METHODS = ["Перевод на карту", "Оплата наличными"]
 
-# Промокоды и скидки
-PROMO_CODES = {
-    "WELCOME10": {"discount": 10, "description": "Скидка 10% для новых клиентов"},
-    "VIP15": {"discount": 15, "description": "Скидка 15% для VIP клиентов"},
-    "SUMMER20": {"discount": 20, "description": "Летняя скидка 20%"},
-    "FREESHIP": {"discount": 0, "free_shipping": True, "description": "Бесплатная доставка"}
-}
 
 # Глобальная корзина пользователей (в реальном проекте лучше использовать базу данных)
 user_carts = {}
@@ -116,15 +128,15 @@ user_favorites = {}
 # Отслеживание последних сообщений для редактирования
 user_last_messages = {}
 
+# Отслеживание ID сообщений карточек товаров для редактирования
+user_product_cards = {}
+
 # Функции для работы с корзиной
 def get_user_cart(user_id: int) -> dict:
     """Получить корзину пользователя"""
     if user_id not in user_carts:
         user_carts[user_id] = {
-            "items": [],
-            "promo_code": None,
-            "discount": 0,
-            "free_shipping": False
+            "items": []
         }
     return user_carts[user_id]
 
@@ -169,10 +181,7 @@ def update_cart_quantity(user_id: int, brand: str, model_index: int, quantity: i
 def clear_cart(user_id: int):
     """Очистить корзину"""
     user_carts[user_id] = {
-        "items": [],
-        "promo_code": None,
-        "discount": 0,
-        "free_shipping": False
+        "items": []
     }
 
 def calculate_cart_total(user_id: int) -> dict:
@@ -189,33 +198,11 @@ def calculate_cart_total(user_id: int) -> dict:
         except ValueError:
             continue
     
-    # Применяем скидку
-    discount_amount = 0
-    if cart["promo_code"] and cart["promo_code"] in PROMO_CODES:
-        promo = PROMO_CODES[cart["promo_code"]]
-        if "discount" in promo:
-            discount_amount = int(subtotal * promo["discount"] / 100)
-    
-    total = subtotal - discount_amount
-    
     return {
         "subtotal": subtotal,
-        "discount": discount_amount,
-        "total": total,
-        "free_shipping": cart.get("free_shipping", False)
+        "total": subtotal
     }
 
-def apply_promo_code(user_id: int, promo_code: str) -> bool:
-    """Применить промокод"""
-    cart = get_user_cart(user_id)
-    
-    if promo_code.upper() in PROMO_CODES:
-        promo = PROMO_CODES[promo_code.upper()]
-        cart["promo_code"] = promo_code.upper()
-        cart["discount"] = promo.get("discount", 0)
-        cart["free_shipping"] = promo.get("free_shipping", False)
-        return True
-    return False
 
 # Функции для работы с избранным
 def get_user_favorites(user_id: int) -> list:
@@ -413,7 +400,7 @@ async def show_cart(message: types.Message):
     if not cart["items"]:
         keyboard = ReplyKeyboardMarkup(
             keyboard=[
-                [KeyboardButton(text="📚 Каталог"), KeyboardButton(text="🛒 Корзина")]
+                [KeyboardButton(text="⌚ Каталог"), KeyboardButton(text="🛒 Корзина")]
             ],
             resize_keyboard=True,
             persistent=True
@@ -455,7 +442,7 @@ async def show_cart(message: types.Message):
     keyboard_buttons.extend([
         [InlineKeyboardButton(text="💳 Оформить заказ", callback_data="checkout_cart")],
         [InlineKeyboardButton(text="🗑️ Очистить корзину", callback_data="clear_cart")],
-        [InlineKeyboardButton(text="📚 Назад в каталог", callback_data="back_to_catalog")]
+        [InlineKeyboardButton(text="⌚ Назад в каталог", callback_data="back_to_catalog")]
     ])
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
@@ -467,16 +454,29 @@ async def show_cart(message: types.Message):
     )
 
 # Функция для создания карточки товара
-async def send_product_card(message: types.Message, brand: str, model_index: int):
+async def send_product_card(message: types.Message, brand: str, model_index: int, show_navigation: bool = True, edit_existing: bool = False):
     """Отправляет детальную карточку товара с несколькими фото и характеристиками"""
     model = WATCH_MODELS_BY_BRAND[brand][model_index]
+    models = WATCH_MODELS_BY_BRAND[brand]
     
     # Создаем inline клавиатуру с кнопками действий
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+    keyboard_buttons = [
         [InlineKeyboardButton(text="🛒 Добавить в корзину", callback_data=f"add_to_cart_{brand}_{model_index}")],
-        [InlineKeyboardButton(text="⭐ В избранное", callback_data=f"toggle_favorite_{brand}_{model_index}")],
-        [InlineKeyboardButton(text="📚 Назад в каталог", callback_data="back_to_catalog")]
+        [InlineKeyboardButton(text="⭐ В избранное", callback_data=f"toggle_favorite_{brand}_{model_index}")]
+    ]
+    
+    # Добавляем кнопки навигации только если товаров больше одного и включена навигация
+    if show_navigation and len(models) > 1:
+        keyboard_buttons.append([
+            InlineKeyboardButton(text="⬅️", callback_data=f"prev_detail_{brand}_{model_index}"), 
+            InlineKeyboardButton(text="➡️", callback_data=f"next_detail_{brand}_{model_index}")
+        ])
+    
+    keyboard_buttons.append([
+        InlineKeyboardButton(text="⌚ Назад в каталог", callback_data="back_to_catalog")
     ])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     
     # Формируем текст с характеристиками
     card_text = f"""
@@ -495,13 +495,63 @@ async def send_product_card(message: types.Message, brand: str, model_index: int
 {model['detailed_info']}
     """
     
-    # Отправляем или редактируем сообщение с фото
-    await send_or_edit_message(
-        message,
-        text=card_text,
-            photo=model["photos"][0],
+    # Если нужно редактировать существующее сообщение
+    if edit_existing:
+        try:
+            # Пытаемся отредактировать существующее сообщение
+            if model["photos"][0].startswith('http'):
+                await bot.edit_message_media(
+                    chat_id=message.chat.id,
+                    message_id=message.message_id,
+                    media=types.InputMediaPhoto(media=model["photos"][0], caption=card_text, parse_mode="HTML"),
+                    reply_markup=keyboard
+                )
+            else:
+                await bot.edit_message_media(
+                    chat_id=message.chat.id,
+                    message_id=message.message_id,
+                    media=types.InputMediaPhoto(media=types.FSInputFile(model["photos"][0]), caption=card_text, parse_mode="HTML"),
+                    reply_markup=keyboard
+                )
+            return
+        except Exception as edit_error:
+            logging.warning(f"Не удалось отредактировать сообщение: {edit_error}")
+            # Если редактирование не удалось, отправляем новое сообщение
+    
+    # Отправляем новое сообщение с фото
+    try:
+        if model["photos"][0].startswith('http'):
+            new_message = await bot.send_photo(
+                chat_id=message.chat.id,
+                photo=model["photos"][0],
+                caption=card_text,
+                parse_mode="HTML",
+                reply_markup=keyboard
+            )
+        else:
+            new_message = await bot.send_photo(
+                chat_id=message.chat.id,
+                photo=types.FSInputFile(model["photos"][0]),
+                caption=card_text,
+                parse_mode="HTML",
+                reply_markup=keyboard
+            )
+        
+        # Сохраняем ID сообщения для дальнейшего редактирования
+        user_product_cards[message.from_user.id] = new_message.message_id
+        
+    except Exception as photo_error:
+        logging.warning(f"Не удалось отправить фото {model['photos'][0]}: {photo_error}")
+        # Если фото не отправилось, отправляем только текст
+        new_message = await bot.send_message(
+            chat_id=message.chat.id,
+            text=card_text,
+            parse_mode="HTML",
             reply_markup=keyboard
         )
+        
+        # Сохраняем ID сообщения для дальнейшего редактирования
+        user_product_cards[message.from_user.id] = new_message.message_id
 
 @dp.message(Command("start"))
 async def start_command(message: types.Message):
@@ -509,34 +559,25 @@ async def start_command(message: types.Message):
     # Создаем reply keyboard с основными кнопками меню
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📚 Каталог"), KeyboardButton(text="🛒 Корзина")]
+            [KeyboardButton(text="⌚ Каталог"), KeyboardButton(text="🛒 Корзина")]
         ],
         resize_keyboard=True,
         persistent=True
     )
     
     # Красивое приветственное сообщение с логотипом
-    welcome_text = """
-🕰️ <b>BRO WATCHES</b> 🕰️
+    welcome_text = """👋 Привет! Добро пожаловать в наш бот-магазин часов.
 
-✨ <b>Добро пожаловать в мир премиальных часов!</b> ✨
-
-Мы предлагаем эксклюзивную коллекцию швейцарских часов от ведущих брендов.
-
-🛍️ <b>Как сделать заказ:</b>
-1. Выберите "Каталог" для просмотра товаров
-2. Добавьте понравившиеся часы в корзину
-3. Перейдите в "Корзина" для оформления заказа
-
-Выберите раздел в меню ниже 👇
+Здесь вы можете:
+⌚ Посмотреть каталог часов
+🛒 Оформить заказ прямо в боте
+📞 Связаться с продавцом для вопросов
     """
     
-    # Отправляем фото логотипа (используем красивое изображение часов)
-    logo_url = "https://images.unsplash.com/photo-1523170335258-f5b6c6e8e4c4?w=500&h=500&fit=crop&crop=center"
-    
+    # Отправляем фото логотипа CSC
     try:
         await message.answer_photo(
-            photo=logo_url,
+            photo=types.FSInputFile("images/CSCLogo.jpg"),
             caption=welcome_text,
             parse_mode="HTML",
             reply_markup=keyboard
@@ -551,7 +592,7 @@ async def start_command(message: types.Message):
         )
 
 # Обработчики для кнопок главного меню
-@dp.message(lambda message: message.text == "📚 Каталог")
+@dp.message(lambda message: message.text == "⌚ Каталог")
 async def catalog_menu(message: types.Message):
     """Обработчик кнопки Каталог"""
     # Создаем reply keyboard с брендами
@@ -567,7 +608,6 @@ async def catalog_menu(message: types.Message):
     
     await send_or_edit_message(
         message,
-        "📚 <b>Каталог часов</b>\n\n"
         "Выберите бренд для просмотра товаров:",
         reply_markup=keyboard
     )
@@ -602,7 +642,7 @@ async def handle_brand_selection(message: types.Message):
             ])
         
         keyboard_buttons.append([
-            InlineKeyboardButton(text="📚 Назад в каталог", callback_data="back_to_catalog")
+            InlineKeyboardButton(text="⌚ Назад в каталог", callback_data="back_to_catalog")
         ])
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
@@ -632,7 +672,7 @@ async def back_to_main_menu(message: types.Message):
     """Возврат в главное меню"""
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📚 Каталог"), KeyboardButton(text="🛒 Корзина")]
+            [KeyboardButton(text="⌚ Каталог"), KeyboardButton(text="🛒 Корзина")]
         ],
         resize_keyboard=True,
         persistent=True
@@ -680,7 +720,7 @@ async def handle_add_to_cart(callback_query: CallbackQuery):
         ])
     
     keyboard_buttons.append([
-        InlineKeyboardButton(text="📚 Назад в каталог", callback_data="back_to_catalog")
+        InlineKeyboardButton(text="⌚ Назад в каталог", callback_data="back_to_catalog")
     ])
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
@@ -709,20 +749,25 @@ async def handle_back_to_catalog(callback_query: CallbackQuery):
         persistent=True
     )
     
-    # Создаем объект сообщения для редактирования
-    message = types.Message(
-        message_id=callback_query.message.message_id,
-        chat=callback_query.message.chat,
-        from_user=callback_query.from_user,
-        date=callback_query.message.date
-    )
-    
-    await send_or_edit_message(
-        message,
-        "📚 <b>Каталог часов</b>\n\n"
-        "Выберите бренд для просмотра товаров:",
-        reply_markup=keyboard
-    )
+    # Используем callback_query.message напрямую для редактирования
+    try:
+        await callback_query.message.edit_text(
+            "Выберите бренд для просмотра товаров:",
+            reply_markup=None
+        )
+        
+        # Отправляем новое сообщение с клавиатурой
+        await callback_query.message.answer(
+            "Выберите бренд для просмотра товаров:",
+            reply_markup=keyboard
+        )
+    except Exception as e:
+        logging.warning(f"Не удалось отредактировать сообщение: {e}")
+        # Если редактирование не удалось, отправляем новое сообщение
+        await callback_query.message.answer(
+            "Выберите бренд для просмотра товаров:",
+            reply_markup=keyboard
+        )
 
 # Обработчик навигации по товарам
 @dp.callback_query(lambda c: c.data.startswith("next_product_") or c.data.startswith("prev_product_"))
@@ -758,7 +803,7 @@ async def handle_product_navigation(callback_query: CallbackQuery):
         ])
     
     keyboard_buttons.append([
-        InlineKeyboardButton(text="📚 Назад в каталог", callback_data="back_to_catalog")
+        InlineKeyboardButton(text="⌚ Назад в каталог", callback_data="back_to_catalog")
     ])
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
@@ -774,14 +819,87 @@ async def handle_product_navigation(callback_query: CallbackQuery):
 📄 <b>Товар {new_index + 1} из {len(models)}</b>
     """
     
-    # Обновляем сообщение
+    # Пытаемся отредактировать существующее сообщение
     try:
-        await callback_query.message.edit_media(
-            media=types.InputMediaPhoto(media=model["photo"], caption=card_text, parse_mode="HTML"),
-        reply_markup=keyboard
+        if model["photo"].startswith('http'):
+            await bot.edit_message_media(
+                chat_id=callback_query.message.chat.id,
+                message_id=callback_query.message.message_id,
+                media=types.InputMediaPhoto(media=model["photo"], caption=card_text, parse_mode="HTML"),
+                reply_markup=keyboard
+            )
+        else:
+            await bot.edit_message_media(
+                chat_id=callback_query.message.chat.id,
+                message_id=callback_query.message.message_id,
+                media=types.InputMediaPhoto(media=types.FSInputFile(model["photo"]), caption=card_text, parse_mode="HTML"),
+                reply_markup=keyboard
+            )
+    except Exception as edit_error:
+        logging.warning(f"Не удалось отредактировать сообщение: {edit_error}")
+        # Если редактирование не удалось, отправляем новое сообщение
+        try:
+            if model["photo"].startswith('http'):
+                new_message = await bot.send_photo(
+                    chat_id=callback_query.message.chat.id,
+                    photo=model["photo"],
+                    caption=card_text,
+                    parse_mode="HTML",
+                    reply_markup=keyboard
+                )
+            else:
+                new_message = await bot.send_photo(
+                    chat_id=callback_query.message.chat.id,
+                    photo=types.FSInputFile(model["photo"]),
+                    caption=card_text,
+                    parse_mode="HTML",
+                    reply_markup=keyboard
+                )
+            
+            # Сохраняем ID нового сообщения
+            user_product_cards[callback_query.from_user.id] = new_message.message_id
+            
+        except Exception as photo_error:
+            logging.warning(f"Не удалось отправить фото {model['photo']}: {photo_error}")
+            # Если фото не отправилось, отправляем только текст
+            new_message = await bot.send_message(
+                chat_id=callback_query.message.chat.id,
+                text=card_text,
+                parse_mode="HTML",
+                reply_markup=keyboard
+            )
+            
+            # Сохраняем ID нового сообщения
+            user_product_cards[callback_query.from_user.id] = new_message.message_id
+
+# Обработчик навигации в детальном просмотре товара
+@dp.callback_query(lambda c: c.data.startswith("next_detail_") or c.data.startswith("prev_detail_"))
+async def handle_detail_navigation(callback_query: CallbackQuery):
+    """Обработка навигации в детальном просмотре товара"""
+    await callback_query.answer()
+    
+    parts = callback_query.data.split("_")
+    direction = parts[0]  # "next" или "prev"
+    brand = parts[2]
+    current_index = int(parts[3])
+    models = WATCH_MODELS_BY_BRAND[brand]
+    
+    # Вычисляем новый индекс
+    if direction == "next":
+        new_index = (current_index + 1) % len(models)
+    else:  # prev
+        new_index = (current_index - 1) % len(models)
+    
+    # Создаем объект сообщения для редактирования существующей карточки
+    message = types.Message(
+        message_id=callback_query.message.message_id,
+        chat=callback_query.message.chat,
+        from_user=callback_query.from_user,
+        date=callback_query.message.date
     )
-    except Exception as e:
-        logging.warning(f"Не удалось обновить сообщение: {e}")
+    
+    # Показываем детальную карточку нового товара (редактируем существующее сообщение)
+    await send_product_card(message, brand, new_index, show_navigation=True, edit_existing=True)
 
 # Обработчик детального просмотра товара
 @dp.callback_query(lambda c: c.data.startswith("product_detail_"))
@@ -793,7 +911,7 @@ async def handle_product_detail(callback_query: CallbackQuery):
     brand = parts[2]
     model_index = int(parts[3])
     
-    # Создаем объект сообщения для редактирования
+    # Создаем объект сообщения для отправки новой карточки
     message = types.Message(
         message_id=callback_query.message.message_id,
         chat=callback_query.message.chat,
@@ -801,8 +919,8 @@ async def handle_product_detail(callback_query: CallbackQuery):
         date=callback_query.message.date
     )
     
-    # Показываем детальную карточку товара
-    await send_product_card(message, brand, model_index)
+    # Показываем детальную карточку товара с навигацией (отправляем новое сообщение)
+    await send_product_card(message, brand, model_index, show_navigation=True)
 
 
 
@@ -1327,7 +1445,7 @@ async def handle_clear_cart(callback_query: CallbackQuery):
     
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📚 Каталог"), KeyboardButton(text="🛒 Корзина")]
+            [KeyboardButton(text="⌚ Каталог"), KeyboardButton(text="🛒 Корзина")]
         ],
         resize_keyboard=True,
         persistent=True
@@ -1382,15 +1500,14 @@ async def handle_back_to_cart(callback_query: CallbackQuery):
     """Возврат в корзину"""
     await callback_query.answer()
     
-    # Создаем объект сообщения для редактирования
-    message = types.Message(
-        message_id=callback_query.message.message_id,
-        chat=callback_query.message.chat,
-        from_user=callback_query.from_user,
-        date=callback_query.message.date
-    )
-    
-    await show_cart(message)
+    # Используем callback_query.message напрямую
+    try:
+        # Пытаемся отредактировать существующее сообщение
+        await show_cart(callback_query.message)
+    except Exception as e:
+        logging.warning(f"Не удалось отредактировать сообщение: {e}")
+        # Если редактирование не удалось, отправляем новое сообщение
+        await callback_query.message.answer("Произошла ошибка при возврате в корзину")
 
 # Обработчик для пустых callback-запросов
 @dp.callback_query(lambda c: c.data == "noop")
@@ -1457,7 +1574,7 @@ async def process_location(message: types.Message, state: FSMContext):
     # Возвращаем в главное меню
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📚 Каталог"), KeyboardButton(text="🛒 Корзина")]
+            [KeyboardButton(text="⌚ Каталог"), KeyboardButton(text="🛒 Корзина")]
         ],
         resize_keyboard=True,
         persistent=True

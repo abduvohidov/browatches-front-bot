@@ -503,6 +503,14 @@ async def start_command(message: types.Message):
         persistent=True
     )
     
+    # Создаем inline кнопки для подписки
+    inline_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="📢 Подписаться на канал", url="https://t.me/your_channel"),
+            InlineKeyboardButton(text="📸 Instagram", url="https://instagram.com/your_account")
+        ]
+    ])
+    
     # Красивое приветственное сообщение с логотипом
     welcome_text = """👋 Привет! Добро пожаловать в наш бот-магазин часов.
 
@@ -510,6 +518,8 @@ async def start_command(message: types.Message):
 ⌚ Посмотреть каталог часов
 🛒 Оформить заказ прямо в боте
 📞 Связаться с продавцом для вопросов
+
+📢 Подписывайтесь на наши соцсети для новостей и акций!
     """
     
     # Отправляем фото логотипа CSC
@@ -518,6 +528,11 @@ async def start_command(message: types.Message):
             photo=types.FSInputFile("images/CSCLogo.jpg"),
             caption=welcome_text,
             parse_mode="HTML",
+            reply_markup=inline_keyboard
+        )
+        # Отправляем reply keyboard отдельным сообщением
+        await message.answer(
+            "Выберите действие:",
             reply_markup=keyboard
         )
     except Exception as e:
@@ -526,6 +541,11 @@ async def start_command(message: types.Message):
         await message.answer(
             welcome_text,
             parse_mode="HTML",
+            reply_markup=inline_keyboard
+        )
+        # Отправляем reply keyboard отдельным сообщением
+        await message.answer(
+            "Выберите действие:",
             reply_markup=keyboard
         )
 
@@ -706,6 +726,7 @@ async def handle_back_to_catalog(callback_query: CallbackQuery):
             reply_markup=keyboard
         )
 
+
 # Обработчик навигации по товарам
 @dp.callback_query(lambda c: c.data.startswith("next_product_") or c.data.startswith("prev_product_"))
 async def handle_product_navigation(callback_query: CallbackQuery):
@@ -828,16 +849,95 @@ async def handle_detail_navigation(callback_query: CallbackQuery):
     else:  # prev
         new_index = (current_index - 1) % len(models)
     
-    # Создаем объект сообщения для редактирования существующей карточки
-    message = types.Message(
-        message_id=callback_query.message.message_id,
-        chat=callback_query.message.chat,
-        from_user=callback_query.from_user,
-        date=callback_query.message.date
-    )
+    model = models[new_index]
     
-    # Показываем детальную карточку нового товара (редактируем существующее сообщение)
-    await send_product_card(message, brand, new_index, show_navigation=True, edit_existing=True)
+    # Создаем клавиатуру для детального просмотра
+    keyboard_buttons = [
+        [InlineKeyboardButton(text="🛒 Добавить в корзину", callback_data=f"add_to_cart_{brand}_{new_index}")],
+        [InlineKeyboardButton(text="📄 Свернуть", callback_data=f"product_brief_{brand}_{new_index}")]
+    ]
+    
+    # Добавляем кнопки навигации только если товаров больше одного
+    if len(models) > 1:
+        keyboard_buttons.append([
+            InlineKeyboardButton(text="⬅️", callback_data=f"prev_detail_{brand}_{new_index}"), 
+            InlineKeyboardButton(text="➡️", callback_data=f"next_detail_{brand}_{new_index}")
+        ])
+    
+    keyboard_buttons.append([
+        InlineKeyboardButton(text="⌚ Назад в каталог", callback_data="back_to_catalog")
+    ])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+    
+    # Формируем детальный текст
+    detail_text = f"""
+🕰️ <b>{model['brand']} {model['name']}</b>
+
+💰 <b>Цена:</b> {model['price']}
+🎨 <b>Цвет:</b> {model['color']}
+⚙️ <b>Механизм:</b> {model['mechanism']}
+
+📋 <b>Характеристики:</b>
+🏷️ <b>Бренд:</b> {model['brand']}
+🔧 <b>Материал:</b> {model['material']}
+💧 <b>Водозащита:</b> {model['water_resistance']}
+
+📝 <b>Описание:</b>
+{model['detailed_info']}
+    """
+    
+    # Редактируем существующее сообщение
+    try:
+        if model["photo"].startswith('http'):
+            await bot.edit_message_media(
+                chat_id=callback_query.message.chat.id,
+                message_id=callback_query.message.message_id,
+                media=types.InputMediaPhoto(media=model["photo"], caption=detail_text, parse_mode="HTML"),
+                reply_markup=keyboard
+            )
+        else:
+            await bot.edit_message_media(
+                chat_id=callback_query.message.chat.id,
+                message_id=callback_query.message.message_id,
+                media=types.InputMediaPhoto(media=types.FSInputFile(model["photo"]), caption=detail_text, parse_mode="HTML"),
+                reply_markup=keyboard
+            )
+    except Exception as edit_error:
+        logging.warning(f"Не удалось отредактировать сообщение: {edit_error}")
+        # Если редактирование не удалось, отправляем новое сообщение
+        try:
+            if model["photo"].startswith('http'):
+                new_message = await bot.send_photo(
+                    chat_id=callback_query.message.chat.id,
+                    photo=model["photo"],
+                    caption=detail_text,
+                    parse_mode="HTML",
+                    reply_markup=keyboard
+                )
+            else:
+                new_message = await bot.send_photo(
+                    chat_id=callback_query.message.chat.id,
+                    photo=types.FSInputFile(model["photo"]),
+                    caption=detail_text,
+                    parse_mode="HTML",
+                    reply_markup=keyboard
+                )
+            
+            # Сохраняем ID нового сообщения
+            user_product_cards[callback_query.from_user.id] = new_message.message_id
+        except Exception as photo_error:
+            logging.warning(f"Не удалось отправить фото: {photo_error}")
+            # Если фото не отправилось, отправляем только текст
+            new_message = await bot.send_message(
+                chat_id=callback_query.message.chat.id,
+                text=detail_text,
+                parse_mode="HTML",
+                reply_markup=keyboard
+            )
+            
+            # Сохраняем ID нового сообщения
+            user_product_cards[callback_query.from_user.id] = new_message.message_id
 
 # Обработчик детального просмотра товара
 @dp.callback_query(lambda c: c.data.startswith("product_detail_"))
@@ -848,20 +948,191 @@ async def handle_product_detail(callback_query: CallbackQuery):
     parts = callback_query.data.split("_")
     brand = parts[2]
     model_index = int(parts[3])
+    model = WATCH_MODELS_BY_BRAND[brand][model_index]
+    models = WATCH_MODELS_BY_BRAND[brand]
     
-    # Создаем объект сообщения для отправки новой карточки
-    message = types.Message(
-        message_id=callback_query.message.message_id,
-        chat=callback_query.message.chat,
-        from_user=callback_query.from_user,
-        date=callback_query.message.date
-    )
+    # Создаем клавиатуру для детального просмотра
+    keyboard_buttons = [
+        [InlineKeyboardButton(text="🛒 Добавить в корзину", callback_data=f"add_to_cart_{brand}_{model_index}")],
+        [InlineKeyboardButton(text="📄 Свернуть", callback_data=f"product_brief_{brand}_{model_index}")]
+    ]
     
-    # Показываем детальную карточку товара с навигацией (отправляем новое сообщение)
-    await send_product_card(message, brand, model_index, show_navigation=True)
+    # Добавляем кнопки навигации только если товаров больше одного
+    if len(models) > 1:
+        keyboard_buttons.append([
+            InlineKeyboardButton(text="⬅️", callback_data=f"prev_detail_{brand}_{model_index}"), 
+            InlineKeyboardButton(text="➡️", callback_data=f"next_detail_{brand}_{model_index}")
+        ])
+    
+    keyboard_buttons.append([
+        InlineKeyboardButton(text="⌚ Назад в каталог", callback_data="back_to_catalog")
+    ])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+    
+    # Формируем детальный текст
+    detail_text = f"""
+🕰️ <b>{model['brand']} {model['name']}</b>
 
+💰 <b>Цена:</b> {model['price']}
+🎨 <b>Цвет:</b> {model['color']}
+⚙️ <b>Механизм:</b> {model['mechanism']}
 
+📋 <b>Характеристики:</b>
+🏷️ <b>Бренд:</b> {model['brand']}
+🔧 <b>Материал:</b> {model['material']}
+💧 <b>Водозащита:</b> {model['water_resistance']}
 
+📝 <b>Описание:</b>
+{model['detailed_info']}
+    """
+    
+    # Редактируем существующее сообщение
+    try:
+        if model["photo"].startswith('http'):
+            await bot.edit_message_media(
+                chat_id=callback_query.message.chat.id,
+                message_id=callback_query.message.message_id,
+                media=types.InputMediaPhoto(media=model["photo"], caption=detail_text, parse_mode="HTML"),
+                reply_markup=keyboard
+            )
+        else:
+            await bot.edit_message_media(
+                chat_id=callback_query.message.chat.id,
+                message_id=callback_query.message.message_id,
+                media=types.InputMediaPhoto(media=types.FSInputFile(model["photo"]), caption=detail_text, parse_mode="HTML"),
+                reply_markup=keyboard
+            )
+    except Exception as edit_error:
+        logging.warning(f"Не удалось отредактировать сообщение: {edit_error}")
+        # Если редактирование не удалось, отправляем новое сообщение
+        try:
+            if model["photo"].startswith('http'):
+                new_message = await bot.send_photo(
+                    chat_id=callback_query.message.chat.id,
+                    photo=model["photo"],
+                    caption=detail_text,
+                    parse_mode="HTML",
+                    reply_markup=keyboard
+                )
+            else:
+                new_message = await bot.send_photo(
+                    chat_id=callback_query.message.chat.id,
+                    photo=types.FSInputFile(model["photo"]),
+                    caption=detail_text,
+                    parse_mode="HTML",
+                    reply_markup=keyboard
+                )
+            
+            # Сохраняем ID нового сообщения
+            user_product_cards[callback_query.from_user.id] = new_message.message_id
+        except Exception as photo_error:
+            logging.warning(f"Не удалось отправить фото: {photo_error}")
+            # Если фото не отправилось, отправляем только текст
+            new_message = await bot.send_message(
+                chat_id=callback_query.message.chat.id,
+                text=detail_text,
+                parse_mode="HTML",
+                reply_markup=keyboard
+            )
+            
+            # Сохраняем ID нового сообщения
+            user_product_cards[callback_query.from_user.id] = new_message.message_id
+
+# Обработчик кнопки "Свернуть" для возврата к краткому виду
+@dp.callback_query(lambda c: c.data.startswith("product_brief_"))
+async def handle_product_brief(callback_query: CallbackQuery):
+    """Обработка возврата к краткому виду товара"""
+    await callback_query.answer()
+    
+    parts = callback_query.data.split("_")
+    brand = parts[2]
+    model_index = int(parts[3])
+    model = WATCH_MODELS_BY_BRAND[brand][model_index]
+    models = WATCH_MODELS_BY_BRAND[brand]
+    
+    # Создаем клавиатуру для краткого просмотра
+    keyboard_buttons = [
+        [InlineKeyboardButton(text="🛒 Добавить в корзину", callback_data=f"add_to_cart_{brand}_{model_index}")],
+        [InlineKeyboardButton(text="📖 Подробнее", callback_data=f"product_detail_{brand}_{model_index}")]
+    ]
+    
+    # Добавляем кнопки навигации только если товаров больше одного
+    if len(models) > 1:
+        keyboard_buttons.append([
+            InlineKeyboardButton(text="⬅️", callback_data=f"prev_product_{brand}_{model_index}"), 
+            InlineKeyboardButton(text="➡️", callback_data=f"next_product_{brand}_{model_index}")
+        ])
+    
+    keyboard_buttons.append([
+        InlineKeyboardButton(text="⌚ Назад в каталог", callback_data="back_to_catalog")
+    ])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+    
+    # Формируем краткий текст
+    brief_text = f"""
+🕰️ <b>{model['brand']} {model['name']}</b>
+
+💰 <b>Цена:</b> {model['price']}
+🎨 <b>Цвет:</b> {model['color']}
+⚙️ <b>Механизм:</b> {model['mechanism']}
+📝 <b>Описание:</b> {model['description']}
+
+📄 <b>Товар {model_index + 1} из {len(models)}</b>
+    """
+    
+    # Редактируем существующее сообщение
+    try:
+        if model["photo"].startswith('http'):
+            await bot.edit_message_media(
+                chat_id=callback_query.message.chat.id,
+                message_id=callback_query.message.message_id,
+                media=types.InputMediaPhoto(media=model["photo"], caption=brief_text, parse_mode="HTML"),
+                reply_markup=keyboard
+            )
+        else:
+            await bot.edit_message_media(
+                chat_id=callback_query.message.chat.id,
+                message_id=callback_query.message.message_id,
+                media=types.InputMediaPhoto(media=types.FSInputFile(model["photo"]), caption=brief_text, parse_mode="HTML"),
+                reply_markup=keyboard
+            )
+    except Exception as edit_error:
+        logging.warning(f"Не удалось отредактировать сообщение: {edit_error}")
+        # Если редактирование не удалось, отправляем новое сообщение
+        try:
+            if model["photo"].startswith('http'):
+                new_message = await bot.send_photo(
+                    chat_id=callback_query.message.chat.id,
+                    photo=model["photo"],
+                    caption=brief_text,
+                    parse_mode="HTML",
+                    reply_markup=keyboard
+                )
+            else:
+                new_message = await bot.send_photo(
+                    chat_id=callback_query.message.chat.id,
+                    photo=types.FSInputFile(model["photo"]),
+                    caption=brief_text,
+                    parse_mode="HTML",
+                    reply_markup=keyboard
+                )
+            
+            # Сохраняем ID нового сообщения
+            user_product_cards[callback_query.from_user.id] = new_message.message_id
+        except Exception as photo_error:
+            logging.warning(f"Не удалось отправить фото: {photo_error}")
+            # Если фото не отправилось, отправляем только текст
+            new_message = await bot.send_message(
+                chat_id=callback_query.message.chat.id,
+                text=brief_text,
+                parse_mode="HTML",
+                reply_markup=keyboard
+            )
+            
+            # Сохраняем ID нового сообщения
+            user_product_cards[callback_query.from_user.id] = new_message.message_id
 
 @dp.message(Command("admin"))
 async def admin_command(message: types.Message):
@@ -1061,6 +1332,14 @@ async def handle_location(message: types.Message, state: FSMContext):
         latitude = message.location.latitude
         longitude = message.location.longitude
         
+        # Проверяем, находимся ли мы в состоянии ожидания локации
+        current_state = await state.get_state()
+        if current_state == OrderStates.waiting_for_location:
+            # Если мы в процессе оформления заказа, обрабатываем через FSM
+            await process_location(message, state)
+            return
+        
+        # Если это не часть процесса оформления заказа, обрабатываем как раньше
         # Получаем корзину пользователя
         cart = get_user_cart(message.from_user.id)
         cart_items = cart.get('items', [])
@@ -1211,14 +1490,27 @@ async def handle_accept_order(callback_query: CallbackQuery):
             parse_mode="HTML"
         )
         
-        # Обновляем сообщение админа
-        await callback_query.message.edit_text(
-            callback_query.message.text + "\n\n✅ <b>ЗАКАЗ ПРИНЯТ АДМИНИСТРАТОРОМ</b>\n"
-            f"📅 Время принятия: {callback_query.message.date}\n"
-            f"👤 Принял: {callback_query.from_user.first_name}",
-            parse_mode="HTML",
-            reply_markup=None
-        )
+        # Обновляем сообщение админа и скрываем кнопки
+        original_text = callback_query.message.text or callback_query.message.caption or ""
+        updated_text = original_text + "\n\n✅ <b>ЗАКАЗ ПРИНЯТ АДМИНИСТРАТОРОМ</b>\n" + \
+                      f"📅 Время принятия: {callback_query.message.date}\n" + \
+                      f"👤 Принял: {callback_query.from_user.first_name}"
+        
+        # Проверяем, есть ли фото в сообщении
+        if callback_query.message.photo:
+            # Если есть фото, редактируем caption
+            await callback_query.message.edit_caption(
+                caption=updated_text,
+                parse_mode="HTML",
+                reply_markup=None
+            )
+        else:
+            # Если нет фото, редактируем текст
+            await callback_query.message.edit_text(
+                updated_text,
+                parse_mode="HTML",
+                reply_markup=None
+            )
         
         await callback_query.answer("✅ Заказ принят и клиент уведомлен!")
         
@@ -1262,14 +1554,27 @@ async def handle_reject_order(callback_query: CallbackQuery):
             parse_mode="HTML"
         )
         
-        # Обновляем сообщение админа
-        await callback_query.message.edit_text(
-            callback_query.message.text + "\n\n❌ <b>ЗАКАЗ ОТКЛОНЕН АДМИНИСТРАТОРОМ</b>\n"
-            f"📅 Время отклонения: {callback_query.message.date}\n"
-            f"👤 Отклонил: {callback_query.from_user.first_name}",
-            parse_mode="HTML",
-            reply_markup=None
-        )
+        # Обновляем сообщение админа и скрываем кнопки
+        original_text = callback_query.message.text or callback_query.message.caption or ""
+        updated_text = original_text + "\n\n❌ <b>ЗАКАЗ ОТКЛОНЕН АДМИНИСТРАТОРОМ</b>\n" + \
+                      f"📅 Время отклонения: {callback_query.message.date}\n" + \
+                      f"👤 Отклонил: {callback_query.from_user.first_name}"
+        
+        # Проверяем, есть ли фото в сообщении
+        if callback_query.message.photo:
+            # Если есть фото, редактируем caption
+            await callback_query.message.edit_caption(
+                caption=updated_text,
+                parse_mode="HTML",
+                reply_markup=None
+            )
+        else:
+            # Если нет фото, редактируем текст
+            await callback_query.message.edit_text(
+                updated_text,
+                parse_mode="HTML",
+                reply_markup=None
+            )
         
         await callback_query.answer("❌ Заказ отклонен и клиент уведомлен!")
         
@@ -1316,6 +1621,12 @@ async def handle_contact_client(callback_query: CallbackQuery):
             parse_mode="HTML",
             reply_markup=keyboard
         )
+        
+        # Скрываем кнопки в исходном сообщении
+        try:
+            await callback_query.message.edit_reply_markup(reply_markup=None)
+        except Exception as e:
+            logging.warning(f"Не удалось скрыть кнопки: {e}")
         
         await callback_query.answer("📞 Информация для связи отправлена!")
         
@@ -1560,8 +1871,7 @@ async def process_phone(message: types.Message, state: FSMContext):
     # Создаем клавиатуру для отправки локации
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📍 Отправить локацию", request_location=True)],
-            [KeyboardButton(text="❌ Пропустить")]
+            [KeyboardButton(text="📍 Отправить локацию", request_location=True)]
         ],
         resize_keyboard=True,
         one_time_keyboard=True
@@ -1577,16 +1887,26 @@ async def process_phone(message: types.Message, state: FSMContext):
 @dp.message(OrderStates.waiting_for_location)
 async def process_location(message: types.Message, state: FSMContext):
     """Обработка ввода локации"""
-    if message.text == "❌ Пропустить":
-        await state.update_data(location="Не указано")
-    else:
-        await state.update_data(location=message.text)
+    # Если пользователь отправил текстовое сообщение вместо локации
+    if message.text:
+        await message.answer(
+            "❌ Пожалуйста, отправьте вашу локацию, нажав кнопку '📍 Отправить локацию'.\n\n"
+            "Локация необходима для доставки заказа."
+        )
+        return
     
-    # Получаем все данные заказа
-    order_data = await state.get_data()
-    
-    # Показываем сводку заказа и запрашиваем подтверждение
-    await show_order_confirmation(message, state, order_data)
+    # Если пользователь отправил локацию, сохраняем её
+    if message.location:
+        await state.update_data(location={
+            'latitude': message.location.latitude,
+            'longitude': message.location.longitude
+        })
+        
+        # Получаем все данные заказа
+        order_data = await state.get_data()
+        
+        # Показываем сводку заказа и запрашиваем подтверждение
+        await show_order_confirmation(message, state, order_data)
 
 async def show_order_confirmation(message: types.Message, state: FSMContext, order_data: dict):
     """Показать сводку заказа и запросить подтверждение"""
@@ -1601,7 +1921,13 @@ async def show_order_confirmation(message: types.Message, state: FSMContext, ord
     confirmation_text += "📋 <b>Ваши данные:</b>\n"
     confirmation_text += f"👤 <b>Имя:</b> {order_data.get('name', 'Не указано')}\n"
     confirmation_text += f"📞 <b>Телефон:</b> {order_data.get('phone', 'Не указано')}\n"
-    confirmation_text += f"📍 <b>Локация:</b> {order_data.get('location', 'Не указано')}\n\n"
+    
+    # Отображаем информацию о локации
+    location_data = order_data.get('location')
+    if location_data and isinstance(location_data, dict):
+        confirmation_text += f"📍 <b>Локация:</b> {location_data.get('latitude', 'Не указано')}, {location_data.get('longitude', 'Не указано')}\n\n"
+    else:
+        confirmation_text += f"📍 <b>Локация:</b> Не указано\n\n"
     
     confirmation_text += "⌚ <b>Товары в заказе:</b>\n"
     total_price = 0
@@ -1680,6 +2006,12 @@ async def handle_confirm_order(callback_query: CallbackQuery, state: FSMContext)
         
         await callback_query.answer("✅ Заказ подтвержден! Отправляем администратору...")
         
+        # Скрываем inline кнопки после подтверждения
+        try:
+            await callback_query.message.edit_reply_markup(reply_markup=None)
+        except Exception as e:
+            logging.warning(f"Не удалось скрыть кнопки: {e}")
+        
         # Отправляем заказ администратору
         await send_order_to_admin(user_id, order_data)
         
@@ -1735,6 +2067,12 @@ async def handle_confirm_order(callback_query: CallbackQuery, state: FSMContext)
 async def handle_cancel_order(callback_query: CallbackQuery, state: FSMContext):
     """Обработка отмены заказа"""
     await callback_query.answer("❌ Заказ отменен")
+    
+    # Скрываем inline кнопки после отмены
+    try:
+        await callback_query.message.edit_reply_markup(reply_markup=None)
+    except Exception as e:
+        logging.warning(f"Не удалось скрыть кнопки: {e}")
     
     # Сбрасываем состояние
     await state.clear()
